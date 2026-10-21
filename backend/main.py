@@ -118,29 +118,38 @@ def get_users():
 
 @app.get("/attendance/history/{user_id}")
 def get_user_history(user_id: str):
-    conn = get_connection()
-    cur = conn.cursor(pymysql.cursors.DictCursor)
-    
-    cur.execute("""
-        SELECT a.date, TIME_FORMAT(a.time, '%h:%i %p') AS time, a.emotion, u.name
-        FROM attendance a JOIN users u ON a.user_id = u.user_id
-        WHERE a.user_id = %s
-        ORDER BY a.date DESC, a.time DESC
-    """, (user_id,))
-    rows = cur.fetchall()
-    conn.close()
-
-    result = []
-    for row in rows:
-        # ডেট নিরাপদে স্ট্রিং-এ কনভার্ট করা
-        date_val = row.get('date')
-        date_str = date_val.strftime('%Y-%m-%d') if hasattr(date_val, 'strftime') else str(date_val)
-
-        result.append({
-            "name": row.get('name', 'Unknown'),
-            "date": date_str,
-            "time": str(row.get('time', '')),
-            "emotion": row.get('emotion', '')
-        })
+    try:
+        conn = get_connection()
+        cur = conn.cursor(pymysql.cursors.DictCursor)
         
-    return result
+        cur.execute("""
+            SELECT a.date, TIME_FORMAT(a.time, '%h:%i %p') AS time, a.emotion, u.name
+            FROM attendance a JOIN users u ON a.user_id = u.user_id
+            WHERE a.user_id = %s
+            ORDER BY a.date DESC, a.time DESC
+        """, (user_id,))
+        rows = cur.fetchall()
+        conn.close()
+
+        result = []
+        for row in rows:
+            # ডেট কনভার্ট করার চেষ্টা
+            date_val = row.get('date')
+            date_str = date_val.strftime('%Y-%m-%d') if hasattr(date_val, 'strftime') else str(date_val)
+
+            result.append({
+                "name": row.get('name', 'Unknown'),
+                "date": date_str,
+                "time": str(row.get('time', '')),
+                "emotion": str(row.get('emotion', ''))
+            })
+            
+        return result
+    
+    except Exception as e:
+        import traceback
+        # যদি কোনো এরর হয়, তবে এরর মেসেজটি সরাসরি ব্রাউজারে দেখাবে
+        return {
+            "error": str(e),
+            "details": traceback.format_exc()
+        }
