@@ -3,8 +3,8 @@
 A modern, AI-powered web-based attendance system that uses facial recognition and emotion detection to mark attendance in real-time. It features a Kiosk mode for users and a secure Admin panel for management. The system greets users with personalized audio messages based on their detected emotion and the current time of day.
 
 ## 🚀 Live Demo
-- **Kiosk (User Interface):** [Add your Vercel Kiosk Link Here]
-- **Admin Panel:** [Add your Vercel Admin Link Here]
+- **Kiosk (User Interface):**(https://smart-attendance-frontend-mu.vercel.app/)
+- **Admin Panel:** (https://smart-attendance-frontend-mu.vercel.app/admin.html)
 
 ## ✨ Key Features
 - **Real-time Face Recognition:** Uses `face-api.js` for fast and accurate face matching directly in the browser.
