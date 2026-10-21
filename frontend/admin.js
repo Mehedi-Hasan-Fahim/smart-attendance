@@ -120,4 +120,63 @@ document.getElementById('registerBtn').addEventListener('click', async () => {
     }
 });
 
+// ইউজারের তথ্য খোঁজা
+async function loadUserInfo() {
+    const userId = document.getElementById('manageId').value.trim();
+    if (!userId) return alert("ID দিন");
+
+    try {
+        // এখানে আমরা history API দিয়েই চেক করছি ইউজারটি আছে কি না
+        const res = await fetch(`${API_BASE}/attendance/history/${userId}`);
+        const data = await res.json();
+        
+        if (data.length > 0 || res.ok) {
+            document.getElementById('editUserPanel').style.display = 'block';
+            document.getElementById('updateName').value = data.length > 0 ? data[0].name : '';
+        } else {
+            alert("ইউজার পাওয়া যায়নি!");
+        }
+    } catch (e) {
+        alert("ইউজার পাওয়া যায়নি বা সার্ভার অফলাইন!");
+    }
+}
+
+// ইউজার আপডেট
+async function updateUser() {
+    const userId = document.getElementById('manageId').value.trim();
+    const newName = document.getElementById('updateName').value.trim();
+    if (!newName) return alert("নতুন নাম দিন");
+
+    const res = await fetch(`${API_BASE}/users/${userId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: newName })
+    });
+
+    if (res.ok) {
+        alert("✅ ইউজারের নাম আপডেট হয়েছে!");
+        refreshTable();
+    } else {
+        alert("❌ আপডেট ফেইল করেছে!");
+    }
+}
+
+// ইউজার ডিলিট
+async function deleteUser() {
+    const userId = document.getElementById('manageId').value.trim();
+    if (!confirm(`আপনি কি নিশ্চিত যে ${userId} ইউজারকে ডিলিট করতে চান? তার সব হাজিরাও মুছে যাবে!`)) return;
+
+    const res = await fetch(`${API_BASE}/users/${userId}`, { method: 'DELETE' });
+
+    if (res.ok) {
+        alert("🗑️ ইউজার ডিলিট হয়েছে!");
+        document.getElementById('editUserPanel').style.display = 'none';
+        document.getElementById('manageId').value = '';
+        refreshTable();
+    } else {
+        alert("❌ ডিলিট ফেইল করেছে!");
+    }
+}
+
+
 init();
