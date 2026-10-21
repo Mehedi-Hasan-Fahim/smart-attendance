@@ -90,9 +90,14 @@ cd frontend
 # Open index.html (Kiosk) or admin.html (Admin Panel) using Live Server
 ```
 
+---
 ## 👨‍💻 Author
-**Mehedi Hasan Fahim**
-- GitHub: [@Mehedi-Hasan-Fahim](https://github.com/Mehedi-Hasan-Fahim)
+*Developed with the assistance of:*
+
+![DeepSeek Logo](https://github.com/deepseek-ai/DeepSeek-V2/blob/main/figures/logo.svg?raw=true) **DeepSeek** 
+<br>
+![Prompter Logo](https://cdn-icons-png.flaticon.com/512/8649/8649593.png) **Prompter** (AI Prompt Engineering)
+GitHub: [@Mehedi-Hasan-Fahim](https://github.com/Mehedi-Hasan-Fahim)
 ```
 
 ---
