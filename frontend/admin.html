@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Panel - Smart Attendance</title>
+    <link rel="stylesheet" href="style.css">
+    <style>
+        .admin-layout { display: flex; gap: 20px; max-width: 1200px; margin: auto; padding: 20px;}
+        .left-panel { flex: 1; }
+        .right-panel { flex: 2; }
+        video { width: 100%; border-radius: 12px; border: 2px solid #e94560; }
+    </style>
+</head>
+<body>
+    <div class="container admin-layout">
+        <!-- বাম পাশ: রেজিস্ট্রেশন -->
+        <div class="left-panel">
+            <h2>👤 নতুন ইউজার রেজিস্ট্রেশন</h2>
+            <div class="admin-panel" style="margin-top: 10px;">
+                <div class="video-container">
+                    <video id="video" autoplay muted playsinline></video>
+                </div>
+                <div style="margin-top: 15px;">
+                    <input type="text" id="regName" placeholder="নাম">
+                    <input type="text" id="regId" placeholder="ID">
+                    <button id="registerBtn" style="width: 100%;">📸 মুখ রেজিস্টার করুন</button>
+                </div>
+                <div id="status" style="color: #4ade80; margin-top: 10px; text-align:center;"></div>
+            </div>
+        </div>
+
+        <!-- ডান পাশ: হাজিরা টেবিল -->
+        <div class="right-panel">
+            <h2>📋 আজকের হাজিরা <button onclick="refreshTable()" style="float: right; padding: 5px 10px;">🔄 রিফ্রেশ</button></h2>
+            <div class="attendance-panel" style="margin-top: 10px;">
+                <table id="attendanceTable">
+                    <thead>
+                        <tr><th>নাম</th><th>ID</th><th>সময়</th><th>ইমোশন</th></tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
+    <script src="admin.js"></script>
+</body>
+</html>
