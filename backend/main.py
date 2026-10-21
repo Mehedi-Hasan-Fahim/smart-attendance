@@ -120,15 +120,34 @@ def get_user_history(user_id: str):
     conn = get_connection()
     cur = conn.cursor(pymysql.cursors.DictCursor)
     
-    # এখানে TIME_FORMAT ব্যবহার করা হয়েছে যাতে টাইম স্ট্রিং হিসেবে আসে
-    cur.execute("""
-        SELECT a.date, TIME_FORMAT(a.time, '%h:%i %p') AS time, a.emotion, u.name
-        FROM attendance a JOIN users u ON a.user_id = u.user_id
-        WHERE a.user_id = %s
-        ORDER BY a.date DESC, a.time DESC
-    """, (user_id,))
-    rows = cur.fetchall()
-    conn.close()
-    
-    # jsonable_encoder স্বয়ংক্রিয়ভাবে date ফরম্যাট ঠিক করে দেবে
-    return jsonable_encoder(rows)
+    try:
+        cur.execute("""
+            SELECT a.date, TIME_FORMAT(a.time, '%h:%i %p') AS time, a.emotion, u.name
+            FROM attendance a JOIN users u ON a.user_id = u.user_id
+            WHERE a.user_id = %s
+            ORDER BY a.date DESC, a.time DESC
+        """, (user_id,))
+        rows = cur.fetchall()
+    except Exception as e:
+        print(f"Database Error: {e}")
+        return {"error": "Database connection failed"}
+    finally:
+        conn.close()
+
+    result = []
+    for row in rows:
+        # ডেটকে ম্যানুয়ালি স্ট্রিং-এ কনভার্ট করা হচ্ছে
+        d = row['date']
+        if d is not None:
+            d_str = d.strftime('%Y-%m-%d') if hasattr(d, 'strftime') else str(d)
+        else:
+            d_str = ""
+
+        result.append({
+            "name": str(row['name']),
+            "date": d_str,
+            "time": str(row['time']),
+            "emotion": str(row['emotion'])
+        })
+        
+    return result
