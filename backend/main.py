@@ -115,39 +115,32 @@ def get_users():
             row['descriptor'] = json.loads(row['descriptor'])
     return rows
 
+
 @app.get("/attendance/history/{user_id}")
 def get_user_history(user_id: str):
     conn = get_connection()
     cur = conn.cursor(pymysql.cursors.DictCursor)
     
-    try:
-        cur.execute("""
-            SELECT a.date, TIME_FORMAT(a.time, '%h:%i %p') AS time, a.emotion, u.name
-            FROM attendance a JOIN users u ON a.user_id = u.user_id
-            WHERE a.user_id = %s
-            ORDER BY a.date DESC, a.time DESC
-        """, (user_id,))
-        rows = cur.fetchall()
-    except Exception as e:
-        print(f"Database Error: {e}")
-        return {"error": "Database connection failed"}
-    finally:
-        conn.close()
+    cur.execute("""
+        SELECT a.date, TIME_FORMAT(a.time, '%h:%i %p') AS time, a.emotion, u.name
+        FROM attendance a JOIN users u ON a.user_id = u.user_id
+        WHERE a.user_id = %s
+        ORDER BY a.date DESC, a.time DESC
+    """, (user_id,))
+    rows = cur.fetchall()
+    conn.close()
 
     result = []
     for row in rows:
-        # ডেটকে ম্যানুয়ালি স্ট্রিং-এ কনভার্ট করা হচ্ছে
-        d = row['date']
-        if d is not None:
-            d_str = d.strftime('%Y-%m-%d') if hasattr(d, 'strftime') else str(d)
-        else:
-            d_str = ""
+        # ডেট নিরাপদে স্ট্রিং-এ কনভার্ট করা
+        date_val = row.get('date')
+        date_str = date_val.strftime('%Y-%m-%d') if hasattr(date_val, 'strftime') else str(date_val)
 
         result.append({
-            "name": str(row['name']),
-            "date": d_str,
-            "time": str(row['time']),
-            "emotion": str(row['emotion'])
+            "name": row.get('name', 'Unknown'),
+            "date": date_str,
+            "time": str(row.get('time', '')),
+            "emotion": row.get('emotion', '')
         })
         
     return result
