@@ -96,7 +96,7 @@ cd frontend
 
 ![DeepSeek Logo](https://github.com/deepseek-ai/DeepSeek-V2/blob/main/figures/logo.svg?raw=true) **DeepSeek** 
 <br>
-![Prompter Logo](https://cdn-icons-png.flaticon.com/512/8649/8649593.png) **Prompter** (AI Prompt Engineering)
+![Prompter Logo]([https://cdn-icons-png.flaticon.com/512/8649/8649593.png](https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSw1oNYpq3u3a2q1hCClFwVyh-raGG-K-F2KQK5jBmINTw_fd6wWJZrq_E&s=10)https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSw1oNYpq3u3a2q1hCClFwVyh-raGG-K-F2KQK5jBmINTw_fd6wWJZrq_E&s=10) **Prompter** (AI Prompt Engineering)
 GitHub: [@Mehedi-Hasan-Fahim](https://github.com/Mehedi-Hasan-Fahim)
 ```
 
