@@ -102,3 +102,17 @@ def today_attendance():
     rows = cur.fetchall()
     conn.close()
     return rows
+
+@app.get("/users")
+def get_users():
+    conn = get_connection()
+    cur = conn.cursor(pymysql.cursors.DictCursor)
+    cur.execute("SELECT user_id, name, descriptor FROM users")
+    rows = cur.fetchall()
+    conn.close()
+    
+    # ডেসক্রিপ্টর যদি স্ট্রিং হিসেবে থাকে, তবে তাকে লিস্টে কনভার্ট করা
+    for row in rows:
+        if isinstance(row['descriptor'], str):
+            row['descriptor'] = json.loads(row['descriptor'])
+    return rows
