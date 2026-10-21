@@ -30,17 +30,24 @@ async function registerFace(name, userId) {
 
     if (!detection) throw new Error('মুখ শনাক্ত হয়নি');
 
-    const descriptor = Array.from(detection.descriptor);
+    // ১. face-api.js এর জন্য এটাকে Float32Array রাখতে হবে
+    const descriptor = detection.descriptor;
+    
+    // ২. লেবেলড ফেস ডেসক্রিপ্টরে সরাসরি Float32Array পাঠাতে হবে
     labeledDescriptors.push(new faceapi.LabeledFaceDescriptors(`${userId}|${name}`, [descriptor]));
     faceMatcher = new faceapi.FaceMatcher(labeledDescriptors, 0.6);
+
+    // ৩. ব্যাকএন্ডে (Render) পাঠানোর জন্য Array তে কনভার্ট করতে হবে, কারণ JSON Float32Array সাপোর্ট করে না
+    const descriptorArray = Array.from(descriptor);
 
     await fetch(`${API_BASE}/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ user_id: userId, name: name, descriptor: descriptor })
+        body: JSON.stringify({ user_id: userId, name: name, descriptor: descriptorArray })
     });
     return true;
 }
+
 
 async function recognizeFace() {
     const video = document.getElementById('video');
