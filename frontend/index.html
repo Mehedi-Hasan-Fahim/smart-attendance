@@ -3,37 +3,28 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Smart Attendance System</title>
+    <title>Smart Attendance - Kiosk</title>
     <link rel="stylesheet" href="style.css">
+    <style>
+        /* Kiosk এর জন্য একটু বড় এবং সেন্টার করা ডিজাইন */
+        .kiosk-container { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 90vh; }
+        video { border: 4px solid #e94560; border-radius: 50%; width: 400px; height: 400px; object-fit: cover; }
+        .greeting-text { font-size: 2em; margin-top: 20px; color: #4ade80; font-weight: bold; text-align: center;}
+        .admin-link { position: absolute; top: 20px; right: 20px; color: #fff; text-decoration: none; background: #333; padding: 10px; border-radius: 5px;}
+    </style>
 </head>
 <body>
-    <div class="container">
-        <h1>🤖 Smart Attendance System</h1>
-        <div class="video-container">
+    <a href="admin.html" class="admin-link">🔒 Admin Login</a>
+    
+    <div class="container kiosk-container">
+        <h1>🤖 Smart Attendance</h1>
+        <div class="video-container" style="position: relative;">
             <video id="video" autoplay muted playsinline></video>
-            <canvas id="overlay"></canvas>
         </div>
         <div id="status" class="status">ক্যামেরা চালু হচ্ছে...</div>
-        
-        <div class="admin-panel">
-            <h2>👤 নতুন ইউজার রেজিস্ট্রেশন</h2>
-            <input type="text" id="regName" placeholder="নাম">
-            <input type="text" id="regId" placeholder="ID">
-            <button id="registerBtn">📸 মুখ রেজিস্টার করুন</button>
-        </div>
-
-        <div class="attendance-panel">
-            <h2>📋 আজকের হাজিরা</h2>
-            <table id="attendanceTable">
-                <thead>
-                    <tr><th>নাম</th><th>ID</th><th>সময়</th><th>ইমোশন</th></tr>
-                </thead>
-                <tbody></tbody>
-            </table>
-        </div>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
-    <script src="app.js"></script>
+    <script src="kiosk.js"></script>
 </body>
 </html>
