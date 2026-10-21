@@ -4,6 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from database import get_connection
 from datetime import datetime, date
+from fastapi.encoders import jsonable_encoder
 import json
 
 app = FastAPI()
@@ -118,7 +119,8 @@ def get_users():
 def get_user_history(user_id: str):
     conn = get_connection()
     cur = conn.cursor(pymysql.cursors.DictCursor)
-    # নির্দিষ্ট ইউজারের সব হাজিরা তারিখ অনুযায়ী সাজিয়ে নিয়ে আসবে
+    
+    # এখানে TIME_FORMAT ব্যবহার করা হয়েছে যাতে টাইম স্ট্রিং হিসেবে আসে
     cur.execute("""
         SELECT a.date, TIME_FORMAT(a.time, '%h:%i %p') AS time, a.emotion, u.name
         FROM attendance a JOIN users u ON a.user_id = u.user_id
@@ -128,9 +130,5 @@ def get_user_history(user_id: str):
     rows = cur.fetchall()
     conn.close()
     
-    # তারিখগুলোকে সুন্দর ফরম্যাটে (YYYY-MM-DD) দেখানোর জন্য
-    for row in rows:
-        if hasattr(row['date'], 'strftime'):
-            row['date'] = row['date'].strftime('%Y-%m-%d')
-            
-    return rows
+    # jsonable_encoder স্বয়ংক্রিয়ভাবে date ফরম্যাট ঠিক করে দেবে
+    return jsonable_encoder(rows)
