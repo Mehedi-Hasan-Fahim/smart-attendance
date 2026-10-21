@@ -94,10 +94,8 @@ cd frontend
 ## 👨‍💻 Author
 *Developed with the assistance of:*
 
-![DeepSeek Logo](https://github.com/deepseek-ai/DeepSeek-V2/blob/main/figures/logo.svg?raw=true) **DeepSeek** 
+![DeepSeek Logo](https://github.com/deepseek-ai/DeepSeek-V2/blob/main/figures/logo.svg?raw=true)
 <br>
-**Prompter** (AI Prompt Engineering)
+**Prompter**
 GitHub: [@Mehedi-Hasan-Fahim](https://github.com/Mehedi-Hasan-Fahim)
-```
-
 ---
