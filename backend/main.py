@@ -3,12 +3,11 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from database import get_connection
-from datetime import datetime, date, timedelta
+from datetime import datetime, date
 import json
 
 app = FastAPI()
 
-# CORS — যাতে আপনার Vercel/Netlify ফ্রন্টএন্ড ব্যাকএন্ডে ডেটা পাঠাতে পারে
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -25,7 +24,6 @@ class AttendanceRequest(BaseModel):
     user_id: str
     emotion: str
 
-# টেবিল তৈরি (প্রথমবার চালালে ডেটাবেজে টেবিল তৈরি হবে)
 def init_db():
     conn = get_connection()
     cur = conn.cursor()
@@ -72,7 +70,6 @@ def mark_attendance(req: AttendanceRequest):
     cur = conn.cursor()
     today = date.today()
     
-    # কুল-ডাউন: আজ ইতিমধ্যে এন্ট্রি থাকলে স্কিপ করবে
     cur.execute(
         "SELECT id FROM attendance WHERE user_id=%s AND date=%s",
         (req.user_id, today)
@@ -93,30 +90,15 @@ def mark_attendance(req: AttendanceRequest):
 def today_attendance():
     conn = get_connection()
     cur = conn.cursor(pymysql.cursors.DictCursor)
+    # সরাসরি SQL দিয়ে সময় ফরম্যাট করা হচ্ছে
     cur.execute("""
-        SELECT u.name, a.user_id, a.time, a.emotion
+        SELECT u.name, a.user_id, TIME_FORMAT(a.time, '%h:%i %p') AS time, a.emotion
         FROM attendance a JOIN users u ON a.user_id = u.user_id
         WHERE a.date = CURDATE()
         ORDER BY a.time DESC
     """)
     rows = cur.fetchall()
     conn.close()
-    
-    # সময়কে ফরম্যাট করা (67691 থেকে 06:48 PM তে কনভার্ট)
-    for row in rows:
-        t = row['time']
-        if isinstance(t, timedelta):
-            total_seconds = int(t.total_seconds())
-            hours = total_seconds // 3600
-            minutes = (total_seconds % 3600) // 60
-            ampm = "AM" if hours < 12 else "PM"
-            display_hour = hours % 12
-            if display_hour == 0:
-                display_hour = 12
-            row['time'] = f"{display_hour:02d}:{minutes:02d} {ampm}"
-        elif hasattr(t, 'strftime'):
-            row['time'] = t.strftime('%I:%M %p')
-            
     return rows
 
 @app.get("/users")
@@ -127,7 +109,6 @@ def get_users():
     rows = cur.fetchall()
     conn.close()
     
-    # ডেসক্রিপ্টর যদি স্ট্রিং হিসেবে থাকে, তবে তাকে লিস্টে কনভার্ট করা
     for row in rows:
         if isinstance(row['descriptor'], str):
             row['descriptor'] = json.loads(row['descriptor'])
