@@ -33,7 +33,21 @@
         <!-- ডান পাশ: হাজিরা টেবিল -->
         <div class="right-panel">
             <h2>📋 আজকের হাজিরা <button onclick="refreshTable()" style="float: right; padding: 5px 10px;">🔄 রিফ্রেশ</button></h2>
-            <!-- ডান পাশ: হাজিরা টেবিল সেকশনে হেডিং এর ঠিক নিচে এটি বসান -->
+            <!-- ইউজার ম্যানেজমেন্ট প্যানেল -->
+                <div style="background: #112240; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+                    <h3>👥 ইউজার ম্যানেজমেন্ট</h3>
+                    <div style="display: flex; gap: 10px; margin-top: 10px;">
+                        <input type="text" id="manageId" placeholder="User ID দিন (যেমন: CSE07908441)" style="flex: 1;">
+                        <button onclick="loadUserInfo()" style="background-color: #f59e0b;">🔍 খুঁজুন</button>
+                    </div>
+                    
+                    <!-- এডিট/ডিলিট অপশন (লুকানো থাকবে) -->
+                    <div id="editUserPanel" style="display: none; margin-top: 15px; background: #0f3460; padding: 10px; border-radius: 6px;">
+                        <input type="text" id="updateName" placeholder="নতুন নাম" style="width: 60%;">
+                        <button onclick="updateUser()" style="background-color: #10b981;">✏️ আপডেট</button>
+                        <button onclick="deleteUser()" style="background-color: #ef4444;">🗑️ ডিলিট</button>
+                    </div>
+                </div>
                 <div style="margin-bottom: 15px; display: flex; gap: 10px;">
                     <input type="text" id="searchId" placeholder="স্টুডেন্টের ID লিখুন..." style="flex: 1;">
                     <button onclick="searchStudent()" style="background-color: #4ade80; color: #000;">🔍 সার্চ করুন</button>
