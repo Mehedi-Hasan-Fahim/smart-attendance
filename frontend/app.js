@@ -112,24 +112,56 @@ function speakGreeting(name, emotion) {
 }
 
 async function init() {
-    await loadModels();
-    await startVideo();
-    document.getElementById('status').textContent = '✅ প্রস্তুত। ক্যামেরার দিকে তাকান।';
-    await refreshTable();
+    try {
+        document.getElementById('status').textContent = '⏳ মডেল লোড হচ্ছে... (একটু সময় লাগবে)';
+        await loadModels();
+        
+        // এই লাইনটি নতুন যোগ করুন
+        await loadRegisteredUsers(); 
+        
+        document.getElementById('status').textContent = '📷 ক্যামেরা চালু হচ্ছে...';
+        await startVideo();
+        
+        document.getElementById('status').textContent = '✅ প্রস্তুত। ক্যামেরার দিকে তাকান।';
+        await refreshTable();
 
-    setInterval(async () => {
-        const result = await recognizeFace();
-        if (result?.userInfo) {
-            const { id, name, emotion } = result.userInfo;
-            document.getElementById('status').textContent = `👋 ${name} | ইমোশন: ${emotion}`;
+        setInterval(async () => {
+            const result = await recognizeFace();
+            if (result?.userInfo) {
+                const { id, name, emotion } = result.userInfo;
+                document.getElementById('status').textContent = `👋 ${name} | ইমোশন: ${emotion}`;
 
-            const logRes = await logAttendance(id, emotion);
-            if (logRes.status === 'marked') {
-                speakGreeting(name, emotion);
-                await refreshTable();
+                const logRes = await logAttendance(id, emotion);
+                if (logRes.status === 'marked') {
+                    speakGreeting(name, emotion);
+                    await refreshTable();
+                }
             }
+        }, 3000);
+    } catch (error) {
+        document.getElementById('status').textContent = '❌ এরর: ' + error.message;
+        console.error(error);
+    }
+}
+
+async function loadRegisteredUsers() {
+    try {
+        const res = await fetch(`${API_BASE}/users`);
+        const users = await res.json();
+        
+        users.forEach(user => {
+            // ডেটাবেজ থেকে আসা সাধারণ অ্যারেকে Float32Array তে কনভার্ট করা
+            const descriptor = new Float32Array(user.descriptor);
+            labeledDescriptors.push(new faceapi.LabeledFaceDescriptors(`${user.user_id}|${user.name}`, [descriptor]));
+        });
+
+        if (labeledDescriptors.length > 0) {
+            faceMatcher = new faceapi.FaceMatcher(labeledDescriptors, 0.6);
+            console.log(`✅ Loaded ${users.length} registered users from database.`);
         }
-    }, 3000);
+    } catch (err) {
+        console.error("Error loading users:", err);
+    }
 }
 
 document.getElementById('registerBtn').addEventListener('click', async () => {
@@ -143,5 +175,6 @@ document.getElementById('registerBtn').addEventListener('click', async () => {
         alert('❌ ' + e.message);
     }
 });
+
 
 init();
