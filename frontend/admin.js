@@ -54,28 +54,38 @@ async function searchStudent() {
     if (!userId) return alert('অনুগ্রহ করে একটি ID দিন');
 
     try {
-        const res = await fetch(`${API_BASE}/attendance/history/${userId}`);
-        const data = await res.json();
+        document.getElementById('status').textContent = '⏳ সার্চ করা হচ্ছে... (সার্ভার জাগতে ৫০ সেকেন্ড পর্যন্ত লাগতে পারে)';
         
+        const res = await fetch(`${API_BASE}/attendance/history/${userId}`);
+        
+        if (!res.ok) {
+            throw new Error(`HTTP Error: ${res.status}`);
+        }
+
+        const data = await res.json();
         const tbody = document.querySelector('#attendanceTable tbody');
         
         if (data.length === 0) {
             tbody.innerHTML = `<tr><td colspan="4" style="text-align:center;">এই ID-এর কোনো হাজিরা পাওয়া যায়নি!</td></tr>`;
+            document.getElementById('status').textContent = '❌ কোনো ডেটা পাওয়া যায়নি।';
             return;
         }
 
-        // টেবিল হেডার পরিবর্তন করে Date দেখানো (কারণ হিস্ট্রিতে তারিখ লাগবে)
         document.querySelector('#attendanceTable thead tr').innerHTML = 
             `<th>নাম</th><th>তারিখ</th><th>সময়</th><th>ইমোশন</th>`;
 
         tbody.innerHTML = data.map(r =>
             `<tr><td>${r.name}</td><td>${r.date}</td><td>${r.time}</td><td>${r.emotion}</td></tr>`
         ).join('');
+        
+        document.getElementById('status').textContent = '✅ সার্চ সফল!';
+
     } catch (error) {
-        alert("সার্চ করতে সমস্যা হচ্ছে!");
+        console.error("Search Error:", error);
+        alert("সার্চ করতে সমস্যা: " + error.message);
+        document.getElementById('status').textContent = '❌ সার্চ ফেইল করেছে।';
     }
 }
-
 
 
 async function init() {
