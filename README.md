@@ -1,1 +1,1 @@
-# smart-attendance-backend
+# smart-attendance
