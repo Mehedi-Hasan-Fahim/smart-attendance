@@ -87,6 +87,33 @@ def mark_attendance(req: AttendanceRequest):
     conn.close()
     return {"status": "marked"}
 
+@app.delete("/users/{user_id}")
+def delete_user(user_id: str):
+    conn = get_connection()
+    cur = conn.cursor()
+    try:
+        # আগে হাজিরার রেকর্ড ডিলিট করতে হবে (Foreign Key Constraint এর কারণে)
+        cur.execute("DELETE FROM attendance WHERE user_id = %s", (user_id,))
+        # এরপর ইউজারের ডেটা ডিলিট করবে
+        cur.execute("DELETE FROM users WHERE user_id = %s", (user_id,))
+        return {"status": "success", "message": "User deleted"}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+    finally:
+        conn.close()
+
+class UserUpdateRequest(BaseModel):
+    name: str
+
+@app.put("/users/{user_id}")
+def update_user(user_id: str, req: UserUpdateRequest):
+    conn = get_connection()
+    cur = conn.cursor()
+    cur.execute("UPDATE users SET name = %s WHERE user_id = %s", (req.name, user_id))
+    conn.close()
+    return {"status": "success", "message": "User updated"}
+
+
 @app.get("/attendance/today")
 def today_attendance():
     conn = get_connection()
@@ -115,15 +142,20 @@ def get_users():
             row['descriptor'] = json.loads(row['descriptor'])
     return rows
 
+@app.delete("/attendance/{attendance_id}")
+def delete_attendance(attendance_id: int):
+    conn = get_connection()
+    cur = conn.cursor()
+    cur.execute("DELETE FROM attendance WHERE id = %s", (attendance_id,))
+    conn.close()
+    return {"status": "success"}
 
 @app.get("/attendance/history/{user_id}")
 def get_user_history(user_id: str):
     conn = get_connection()
     cur = conn.cursor(pymysql.cursors.DictCursor)
-    
-    # খেয়াল করুন: TIME_FORMAT-এর ভেতরে %% দেওয়া হয়েছে
     cur.execute("""
-        SELECT a.date, TIME_FORMAT(a.time, '%%h:%%i %%p') AS time, a.emotion, u.name
+        SELECT a.id, a.date, TIME_FORMAT(a.time, '%%h:%%i %%p') AS time, a.emotion, u.name
         FROM attendance a JOIN users u ON a.user_id = u.user_id
         WHERE a.user_id = %s
         ORDER BY a.date DESC, a.time DESC
