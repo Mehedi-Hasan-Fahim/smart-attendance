@@ -39,12 +39,44 @@ async function fetchTodayAttendance() {
 }
 
 async function refreshTable() {
+    document.querySelector('#attendanceTable thead tr').innerHTML = 
+        `<th>নাম</th><th>ID</th><th>সময়</th><th>ইমোশন</th>`;
+    
     const data = await fetchTodayAttendance();
     const tbody = document.querySelector('#attendanceTable tbody');
     tbody.innerHTML = data.map(r =>
         `<tr><td>${r.name}</td><td>${r.user_id}</td><td>${r.time}</td><td>${r.emotion}</td></tr>`
     ).join('');
 }
+
+async function searchStudent() {
+    const userId = document.getElementById('searchId').value.trim();
+    if (!userId) return alert('অনুগ্রহ করে একটি ID দিন');
+
+    try {
+        const res = await fetch(`${API_BASE}/attendance/history/${userId}`);
+        const data = await res.json();
+        
+        const tbody = document.querySelector('#attendanceTable tbody');
+        
+        if (data.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="4" style="text-align:center;">এই ID-এর কোনো হাজিরা পাওয়া যায়নি!</td></tr>`;
+            return;
+        }
+
+        // টেবিল হেডার পরিবর্তন করে Date দেখানো (কারণ হিস্ট্রিতে তারিখ লাগবে)
+        document.querySelector('#attendanceTable thead tr').innerHTML = 
+            `<th>নাম</th><th>তারিখ</th><th>সময়</th><th>ইমোশন</th>`;
+
+        tbody.innerHTML = data.map(r =>
+            `<tr><td>${r.name}</td><td>${r.date}</td><td>${r.time}</td><td>${r.emotion}</td></tr>`
+        ).join('');
+    } catch (error) {
+        alert("সার্চ করতে সমস্যা হচ্ছে!");
+    }
+}
+
+
 
 async function init() {
     document.getElementById('status').textContent = 'মডেল লোড হচ্ছে...';
