@@ -3,7 +3,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from database import get_connection
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
 import json
 
 app = FastAPI()
@@ -94,13 +94,29 @@ def today_attendance():
     conn = get_connection()
     cur = conn.cursor(pymysql.cursors.DictCursor)
     cur.execute("""
-        SELECT u.name, a.user_id, DATE_FORMAT(a.time, '%h:%i %p') AS time, a.emotion
+        SELECT u.name, a.user_id, a.time, a.emotion
         FROM attendance a JOIN users u ON a.user_id = u.user_id
         WHERE a.date = CURDATE()
         ORDER BY a.time DESC
     """)
     rows = cur.fetchall()
     conn.close()
+    
+    # সময়কে ফরম্যাট করা (67691 থেকে 06:48 PM তে কনভার্ট)
+    for row in rows:
+        t = row['time']
+        if isinstance(t, timedelta):
+            total_seconds = int(t.total_seconds())
+            hours = total_seconds // 3600
+            minutes = (total_seconds % 3600) // 60
+            ampm = "AM" if hours < 12 else "PM"
+            display_hour = hours % 12
+            if display_hour == 0:
+                display_hour = 12
+            row['time'] = f"{display_hour:02d}:{minutes:02d} {ampm}"
+        elif hasattr(t, 'strftime'):
+            row['time'] = t.strftime('%I:%M %p')
+            
     return rows
 
 @app.get("/users")
