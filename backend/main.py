@@ -113,3 +113,24 @@ def get_users():
         if isinstance(row['descriptor'], str):
             row['descriptor'] = json.loads(row['descriptor'])
     return rows
+
+@app.get("/attendance/history/{user_id}")
+def get_user_history(user_id: str):
+    conn = get_connection()
+    cur = conn.cursor(pymysql.cursors.DictCursor)
+    # নির্দিষ্ট ইউজারের সব হাজিরা তারিখ অনুযায়ী সাজিয়ে নিয়ে আসবে
+    cur.execute("""
+        SELECT a.date, TIME_FORMAT(a.time, '%h:%i %p') AS time, a.emotion, u.name
+        FROM attendance a JOIN users u ON a.user_id = u.user_id
+        WHERE a.user_id = %s
+        ORDER BY a.date DESC, a.time DESC
+    """, (user_id,))
+    rows = cur.fetchall()
+    conn.close()
+    
+    # তারিখগুলোকে সুন্দর ফরম্যাটে (YYYY-MM-DD) দেখানোর জন্য
+    for row in rows:
+        if hasattr(row['date'], 'strftime'):
+            row['date'] = row['date'].strftime('%Y-%m-%d')
+            
+    return rows
