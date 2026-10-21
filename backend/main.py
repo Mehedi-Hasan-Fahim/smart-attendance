@@ -4,6 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from database import get_connection
 from datetime import datetime, date
+import json
 
 app = FastAPI()
 
@@ -93,7 +94,7 @@ def today_attendance():
     conn = get_connection()
     cur = conn.cursor(pymysql.cursors.DictCursor)
     cur.execute("""
-        SELECT u.name, a.user_id, a.time, a.emotion
+        SELECT u.name, a.user_id, DATE_FORMAT(a.time, '%h:%i %p') AS time, a.emotion
         FROM attendance a JOIN users u ON a.user_id = u.user_id
         WHERE a.date = CURDATE()
         ORDER BY a.time DESC
