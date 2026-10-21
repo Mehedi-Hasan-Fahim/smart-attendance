@@ -3,8 +3,8 @@
 A modern, AI-powered web-based attendance system that uses facial recognition and emotion detection to mark attendance in real-time. It features a Kiosk mode for users and a secure Admin panel for management. The system greets users with personalized audio messages based on their detected emotion and the current time of day.
 
 ## 🚀 Live Demo
-- **Kiosk (User Interface):**(https://smart-attendance-frontend-mu.vercel.app/)
-- **Admin Panel:** (https://smart-attendance-frontend-mu.vercel.app/admin.html)
+- [Kiosk (User Interface)](https://smart-attendance-frontend-mu.vercel.app/)
+- [Admin Panel](https://smart-attendance-frontend-mu.vercel.app/admin.html)
 
 ## ✨ Key Features
 - **Real-time Face Recognition:** Uses `face-api.js` for fast and accurate face matching directly in the browser.
@@ -37,9 +37,11 @@ A modern, AI-powered web-based attendance system that uses facial recognition an
 ## 📸 Screenshots
 
 ### 1. Kiosk Mode (Face Recognition & Greeting)
+<!-- এখানে আপনার Kiosk Mode এর ছবি দিন -->
 ![Kiosk Mode](assets/kiosk-screenshot.png)
 
 ### 2. Admin Panel (Registration & Attendance Logs)
+<!-- এখানে আপনার Admin Panel এর ছবি দিন -->
 ![Admin Panel](assets/admin-screenshot.png)
 
 ## ⚙️ Architecture & Workflow
@@ -55,3 +57,42 @@ A modern, AI-powered web-based attendance system that uses facial recognition an
 ```bash
 git clone https://github.com/Mehedi-Hasan-Fahim/smart-attendance.git
 cd smart-attendance
+```
+
+### 2. Backend Setup
+```bash
+cd backend
+python -m venv venv
+# Activate virtual environment
+# Windows: venv\Scripts\activate
+# Mac/Linux: source venv/bin/activate
+
+pip install -r requirements.txt
+```
+
+Create a `.env` file in the `backend` folder and add your database credentials:
+```env
+TIDB_HOST="your_tidb_host"
+TIDB_PORT="4000"
+TIDB_USER="your_tidb_user"
+TIDB_PASSWORD="your_tidb_password"
+```
+
+Run the FastAPI server:
+```bash
+uvicorn main:app --reload
+```
+
+### 3. Frontend Setup
+You can use any local server to run the frontend (e.g., Live Server in VS Code).
+```bash
+cd frontend
+# Open index.html (Kiosk) or admin.html (Admin Panel) using Live Server
+```
+
+## 👨‍💻 Author
+**Mehedi Hasan Fahim**
+- GitHub: [@Mehedi-Hasan-Fahim](https://github.com/Mehedi-Hasan-Fahim)
+```
+
+---
