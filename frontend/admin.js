@@ -53,21 +53,23 @@ async function searchStudent() {
     const userId = document.getElementById('searchId').value.trim();
     if (!userId) return alert('অনুগ্রহ করে একটি ID দিন');
 
+    const statusEl = document.getElementById('status');
+    statusEl.textContent = '⏳ সার্ভার জাগানো হচ্ছে এবং সার্চ করা হচ্ছে...';
+
     try {
-        document.getElementById('status').textContent = '⏳ সার্চ করা হচ্ছে... (সার্ভার জাগতে ৫০ সেকেন্ড পর্যন্ত লাগতে পারে)';
-        
         const res = await fetch(`${API_BASE}/attendance/history/${userId}`);
+        const data = await res.json();
         
-        if (!res.ok) {
-            throw new Error(`HTTP Error: ${res.status}`);
+        // চেক করা হচ্ছে ডেটা অ্যারে (Array) কি না
+        if (!Array.isArray(data)) {
+            throw new Error(data.error || "সার্ভার থেকে ভুল ডেটা ফরম্যাট এসেছে");
         }
 
-        const data = await res.json();
         const tbody = document.querySelector('#attendanceTable tbody');
         
         if (data.length === 0) {
             tbody.innerHTML = `<tr><td colspan="4" style="text-align:center;">এই ID-এর কোনো হাজিরা পাওয়া যায়নি!</td></tr>`;
-            document.getElementById('status').textContent = '❌ কোনো ডেটা পাওয়া যায়নি।';
+            statusEl.textContent = '❌ কোনো ডেটা পাওয়া যায়নি।';
             return;
         }
 
@@ -78,15 +80,18 @@ async function searchStudent() {
             `<tr><td>${r.name}</td><td>${r.date}</td><td>${r.time}</td><td>${r.emotion}</td></tr>`
         ).join('');
         
-        document.getElementById('status').textContent = '✅ সার্চ সফল!';
+        statusEl.textContent = '✅ সার্চ সফল!';
+        statusEl.style.color = '#4ade80';
 
     } catch (error) {
         console.error("Search Error:", error);
         alert("সার্চ করতে সমস্যা: " + error.message);
-        document.getElementById('status').textContent = '❌ সার্চ ফেইল করেছে।';
+        statusEl.textContent = '❌ সার্চ ফেইল করেছে।';
+        statusEl.style.color = '#ef4444';
     }
 }
 
+ 
 
 async function init() {
     document.getElementById('status').textContent = 'মডেল লোড হচ্ছে...';
