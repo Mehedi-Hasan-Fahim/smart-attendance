@@ -2,7 +2,11 @@ const API_BASE = 'https://smart-attendance-backend-wv9v.onrender.com';
 const MODEL_URL = '/models'; 
 let currentData = []; // CSV ডাউনলোডের জন্য ডেটা জমা রাখবে
 
-// সাইডবার মেনু কন্ট্রোল
+// সাইডবার মেনু কন্ট্রোল (Event Listener ব্যবহার করে)
+document.getElementById('menu-dashboard').addEventListener('click', function() { showSection('dashboard', this); });
+document.getElementById('menu-register').addEventListener('click', function() { showSection('register', this); });
+document.getElementById('menu-attendance').addEventListener('click', function() { showSection('attendance', this); });
+
 function showSection(id, element) {
     document.querySelectorAll('.section').forEach(sec => sec.classList.remove('active'));
     document.querySelectorAll('.sidebar a').forEach(a => a.classList.remove('active'));
@@ -10,9 +14,8 @@ function showSection(id, element) {
     document.getElementById(id).classList.add('active');
     if(element) element.classList.add('active');
     
-    // চার্ট লোড করার আগে একটু সময় দেওয়া হচ্ছে যাতে ডিভ রেন্ডার হয়
     if(id === 'dashboard') {
-        setTimeout(() => { loadChart(); }, 100);
+        setTimeout(() => { loadChart(); }, 200); // চার্ট লোড হতে একটু সময় দিলাম
     }
 }
 
