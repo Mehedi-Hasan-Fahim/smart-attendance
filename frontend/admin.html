@@ -3,66 +3,92 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Admin Panel - Smart Attendance</title>
+    <title>Admin Dashboard</title>
     <link rel="stylesheet" href="style.css">
+    <!-- Chart.js যোগ করা হলো -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        .admin-layout { display: flex; gap: 20px; max-width: 1200px; margin: auto; padding: 20px;}
-        .left-panel { flex: 1; }
-        .right-panel { flex: 2; }
-        video { width: 100%; border-radius: 12px; border: 2px solid #e94560; }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { display: flex; height: 100vh; background: #0f172a; color: #fff; font-family: Arial, sans-serif; }
+        
+        /* Sidebar */
+        .sidebar { width: 250px; background: #1e293b; padding: 20px; display: flex; flex-direction: column; }
+        .sidebar h2 { color: #e94560; text-align: center; margin-bottom: 30px; }
+        .sidebar a { color: #94a3b8; text-decoration: none; padding: 15px; margin-bottom: 10px; border-radius: 8px; cursor: pointer; transition: 0.3s; }
+        .sidebar a:hover, .sidebar a.active { background: #e94560; color: white; }
+        
+        /* Main Content */
+        .main-content { flex: 1; padding: 30px; overflow-y: auto; }
+        .section { display: none; }
+        .section.active { display: block; }
+        
+        /* Cards & Tables */
+        .card { background: #1e293b; padding: 20px; border-radius: 12px; margin-bottom: 20px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+        th, td { padding: 12px; border-bottom: 1px solid #334155; text-align: left; }
+        input, button { padding: 10px; border-radius: 6px; border: none; margin-right: 10px; }
+        input { background: #0f172a; color: white; border: 1px solid #334155; }
+        button { background: #e94560; color: white; cursor: pointer; }
+        button:hover { opacity: 0.8; }
+        
+        .chart-container { width: 400px; margin: auto; }
     </style>
 </head>
 <body>
-    <div class="container admin-layout">
-        <!-- বাম পাশ: রেজিস্ট্রেশন -->
-        <div class="left-panel">
-            <h2>👤 নতুন ইউজার রেজিস্ট্রেশন</h2>
-            <div class="admin-panel" style="margin-top: 10px;">
-                <div class="video-container">
-                    <video id="video" autoplay muted playsinline></video>
-                </div>
-                <div style="margin-top: 15px;">
-                    <input type="text" id="regName" placeholder="নাম">
-                    <input type="text" id="regId" placeholder="ID">
-                    <button id="registerBtn" style="width: 100%;">📸 মুখ রেজিস্টার করুন</button>
-                </div>
-                <div id="status" style="color: #4ade80; margin-top: 10px; text-align:center;"></div>
+    <!-- Sidebar -->
+    <div class="sidebar">
+        <h2>Admin Panel</h2>
+        <a class="active" onclick="showSection('dashboard')">📊 Dashboard</a>
+        <a onclick="showSection('register')">👤 Register User</a>
+        <a onclick="showSection('attendance')">📋 Attendance Logs</a>
+        <a href="index.html" style="margin-top: auto; background: #475569;">⬅ Back to Kiosk</a>
+    </div>
+
+    <!-- Main Content -->
+    <div class="main-content">
+        <!-- Dashboard Section -->
+        <div id="dashboard" class="section active">
+            <h2>Analytics Dashboard</h2>
+            <div class="card chart-container">
+                <canvas id="emotionChart"></canvas>
             </div>
         </div>
 
-        <!-- ডান পাশ: হাজিরা টেবিল -->
-        <div class="right-panel">
-            <h2>📋 আজকের হাজিরা <button onclick="refreshTable()" style="float: right; padding: 5px 10px;">🔄 রিফ্রেশ</button></h2>
-            <!-- ইউজার ম্যানেজমেন্ট প্যানেল -->
-                <div style="background: #112240; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
-                    <h3>👥 ইউজার ম্যানেজমেন্ট</h3>
-                    <div style="display: flex; gap: 10px; margin-top: 10px;">
-                        <input type="text" id="manageId" placeholder="User ID দিন (যেমন: CSE07908441)" style="flex: 1;">
-                        <button onclick="loadUserInfo()" style="background-color: #f59e0b;">🔍 খুঁজুন</button>
-                    </div>
-                    
-                    <!-- এডিট/ডিলিট অপশন (লুকানো থাকবে) -->
-                    <div id="editUserPanel" style="display: none; margin-top: 15px; background: #0f3460; padding: 10px; border-radius: 6px;">
-                        <input type="text" id="updateName" placeholder="নতুন নাম" style="width: 60%;">
-                        <button onclick="updateUser()" style="background-color: #10b981;">✏️ আপডেট</button>
-                        <button onclick="deleteUser()" style="background-color: #ef4444;">🗑️ ডিলিট</button>
-                    </div>
+        <!-- Register Section -->
+        <div id="register" class="section">
+            <h2>Register New User</h2>
+            <div class="card" style="display: flex; gap: 20px;">
+                <div>
+                    <video id="video" autoplay muted playsinline style="width: 300px; border-radius: 12px; border: 2px solid #e94560;"></video>
                 </div>
-                <div style="margin-bottom: 15px; display: flex; gap: 10px;">
-                    <input type="text" id="searchId" placeholder="স্টুডেন্টের ID লিখুন..." style="flex: 1;">
-                    <button onclick="searchStudent()" style="background-color: #4ade80; color: #000;">🔍 সার্চ করুন</button>
-                    <button onclick="refreshTable()" style="background-color: #888;">🔄 আজকের হাজিরা</button>
+                <div>
+                    <input type="text" id="regName" placeholder="Name"><br><br>
+                    <input type="text" id="regId" placeholder="ID"><br><br>
+                    <button id="registerBtn" style="width: 100%;">📸 Register Face</button>
+                    <p id="status" style="margin-top: 15px; color: #22c55e;"></p>
                 </div>
-            <div class="attendance-panel" style="margin-top: 10px;">
+            </div>
+        </div>
+
+        <!-- Attendance Section -->
+        <div id="attendance" class="section">
+            <h2>Attendance Logs</h2>
+            <div class="card">
+                <input type="text" id="searchId" placeholder="Search by User ID">
+                <button onclick="searchStudent()">🔍 Search</button>
+                <button onclick="refreshTable()" style="background: #3b82f6;">🔄 Today's Log</button>
+                <button onclick="downloadCSV()" style="background: #10b981;">⬇ Download CSV</button>
+                
                 <table id="attendanceTable">
                     <thead>
-                        <tr><th>নাম</th><th>ID</th><th>সময়</th><th>ইমোশন</th></tr>
+                        <tr><th>Name</th><th>ID</th><th>Time</th><th>Emotion</th></tr>
                     </thead>
                     <tbody></tbody>
                 </table>
             </div>
         </div>
     </div>
+
     <script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
     <script src="admin.js"></script>
 </body>
