@@ -1,182 +1,141 @@
 const API_BASE = 'https://smart-attendance-backend-wv9v.onrender.com';
 const MODEL_URL = '/models'; 
+let currentData = []; // CSV ডাউনলোডের জন্য ডেটা জমা রাখবে
 
+// সাইডবার মেনু কন্ট্রোল
+function showSection(id) {
+    document.querySelectorAll('.section').forEach(sec => sec.classList.remove('active'));
+    document.querySelectorAll('.sidebar a').forEach(a => a.classList.remove('active'));
+    document.getElementById(id).classList.add('active');
+    event.target.classList.add('active');
+    if(id === 'dashboard') loadChart();
+}
+
+// মডেল লোড
 async function loadModels() {
     await faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL);
     await faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL);
     await faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL);
 }
 
+// ক্যামেরা চালু (রেজিস্ট্রেশন সেকশনের জন্য)
 async function startVideo() {
     const video = document.getElementById('video');
-    const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-    video.srcObject = stream;
-    return new Promise(resolve => video.addEventListener('playing', () => resolve(video)));
+    try {
+        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+        video.srcObject = stream;
+        return new Promise(resolve => video.addEventListener('playing', () => resolve(video)));
+    } catch(e) { console.error("Camera error", e); }
 }
 
+// রেজিস্ট্রেশন
 async function registerFace(name, userId) {
     const video = document.getElementById('video');
-    const detection = await faceapi
-        .detectSingleFace(video, new faceapi.TinyFaceDetectorOptions())
-        .withFaceLandmarks()
-        .withFaceDescriptor();
-
-    if (!detection) throw new Error('মুখ শনাক্ত হয়নি। ক্যামেরার দিকে সরাসরি তাকান।');
-
+    const detection = await faceapi.detectSingleFace(video, new faceapi.TinyFaceDetectorOptions()).withFaceLandmarks().withFaceDescriptor();
+    if (!detection) throw new Error('Face not detected.');
     const descriptorArray = Array.from(detection.descriptor);
-
-    const res = await fetch(`${API_BASE}/register`, {
+    await fetch(`${API_BASE}/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ user_id: userId, name: name, descriptor: descriptorArray })
     });
-    return res.ok;
 }
 
-async function fetchTodayAttendance() {
-    const res = await fetch(`${API_BASE}/attendance/today`);
-    return res.json();
-}
-
+// টেবিল রিফ্রেশ
 async function refreshTable() {
-    document.querySelector('#attendanceTable thead tr').innerHTML = 
-        `<th>নাম</th><th>ID</th><th>সময়</th><th>ইমোশন</th>`;
-    
-    const data = await fetchTodayAttendance();
+    const res = await fetch(`${API_BASE}/attendance/today`);
+    currentData = await res.json();
+    renderTable(currentData, false);
+}
+
+// সার্চ
+async function searchStudent() {
+    const userId = document.getElementById('searchId').value.trim();
+    if (!userId) return alert('Enter ID');
+    const res = await fetch(`${API_BASE}/attendance/history/${userId}`);
+    currentData = await res.json();
+    renderTable(currentData, true);
+}
+
+function renderTable(data, isSearch) {
     const tbody = document.querySelector('#attendanceTable tbody');
-    tbody.innerHTML = data.map(r =>
-        `<tr><td>${r.name}</td><td>${r.user_id}</td><td>${r.time}</td><td>${r.emotion}</td></tr>`
+    const thead = document.querySelector('#attendanceTable thead tr');
+    
+    if(isSearch) thead.innerHTML = `<th>Name</th><th>Date</th><th>Time</th><th>Emotion</th>`;
+    else thead.innerHTML = `<th>Name</th><th>ID</th><th>Time</th><th>Emotion</th>`;
+
+    if(!data || data.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="4">No data found.</td></tr>`;
+        return;
+    }
+
+    tbody.innerHTML = data.map(r => 
+        `<tr><td>${r.name}</td><td>${isSearch ? r.date : r.user_id}</td><td>${r.time}</td><td>${r.emotion}</td></tr>`
     ).join('');
 }
 
-async function searchStudent() {
-    const userId = document.getElementById('searchId').value.trim();
-    if (!userId) return alert('অনুগ্রহ করে একটি ID দিন');
+// CSV ডাউনলোড
+function downloadCSV() {
+    if(currentData.length === 0) return alert("No data to download!");
+    
+    let csvContent = "Name,ID,Date,Time,Emotion\n";
+    currentData.forEach(row => {
+        csvContent += `${row.name},${row.user_id || ''},${row.date || ''},${row.time},${row.emotion}\n`;
+    });
 
-    const statusEl = document.getElementById('status');
-    statusEl.textContent = '⏳ সার্ভার জাগানো হচ্ছে এবং সার্চ করা হচ্ছে...';
-
-    try {
-        const res = await fetch(`${API_BASE}/attendance/history/${userId}`);
-        const data = await res.json();
-        
-        // চেক করা হচ্ছে ডেটা অ্যারে (Array) কি না
-        if (!Array.isArray(data)) {
-            throw new Error(data.error || "সার্ভার থেকে ভুল ডেটা ফরম্যাট এসেছে");
-        }
-
-        const tbody = document.querySelector('#attendanceTable tbody');
-        
-        if (data.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="4" style="text-align:center;">এই ID-এর কোনো হাজিরা পাওয়া যায়নি!</td></tr>`;
-            statusEl.textContent = '❌ কোনো ডেটা পাওয়া যায়নি।';
-            return;
-        }
-
-        document.querySelector('#attendanceTable thead tr').innerHTML = 
-            `<th>নাম</th><th>তারিখ</th><th>সময়</th><th>ইমোশন</th>`;
-
-        tbody.innerHTML = data.map(r =>
-            `<tr><td>${r.name}</td><td>${r.date}</td><td>${r.time}</td><td>${r.emotion}</td></tr>`
-        ).join('');
-        
-        statusEl.textContent = '✅ সার্চ সফল!';
-        statusEl.style.color = '#4ade80';
-
-    } catch (error) {
-        console.error("Search Error:", error);
-        alert("সার্চ করতে সমস্যা: " + error.message);
-        statusEl.textContent = '❌ সার্চ ফেইল করেছে।';
-        statusEl.style.color = '#ef4444';
-    }
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = "attendance_report.csv";
+    link.click();
 }
 
- 
+// পাই-চার্ট (Analytics)
+async function loadChart() {
+    const res = await fetch(`${API_BASE}/attendance/today`);
+    const data = await res.json();
+    
+    const counts = { happy: 0, neutral: 0, sad: 0, angry: 0, other: 0 };
+    data.forEach(r => {
+        if(counts[r.emotion] !== undefined) counts[r.emotion]++;
+        else counts.other++;
+    });
 
-async function init() {
-    document.getElementById('status').textContent = 'মডেল লোড হচ্ছে...';
-    await loadModels();
-    await startVideo();
-    document.getElementById('status').textContent = '✅ ক্যামেরা প্রস্তুত।';
-    await refreshTable();
+    const ctx = document.getElementById('emotionChart').getContext('2d');
+    if(window.myChart) window.myChart.destroy(); // আগের চার্ট মুছে ফেলা
+
+    window.myChart = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: ['Happy', 'Neutral', 'Sad', 'Angry', 'Other'],
+            datasets: [{
+                data: [counts.happy, counts.neutral, counts.sad, counts.angry, counts.other],
+                backgroundColor: ['#22c55e', '#3b82f6', '#ef4444', '#f59e0b', '#64748b']
+            }]
+        },
+        options: { plugins: { legend: { labels: { color: 'white' } } } }
+    });
 }
 
-document.getElementById('registerBtn').addEventListener('click', async () => {
+// Initialization
+document.getElementById('registerBtn')?.addEventListener('click', async () => {
     const name = document.getElementById('regName').value.trim();
     const id = document.getElementById('regId').value.trim();
-    const statusEl = document.getElementById('status');
-    
-    if (!name || !id) return alert('নাম ও ID দিন');
-    
+    if (!name || !id) return alert('Enter Name and ID');
     try {
-        statusEl.textContent = '⏳ মুখ স্ক্যান হচ্ছে...';
+        document.getElementById('status').textContent = "Scanning...";
         await registerFace(name, id);
-        statusEl.textContent = '✅ রেজিস্ট্রেশন সফল হয়েছে!';
-        alert('✅ মুখ সফলভাবে রেজিস্টার হয়েছে!');
-        document.getElementById('regName').value = '';
-        document.getElementById('regId').value = '';
+        document.getElementById('status').textContent = "✅ Registered!";
+        document.getElementById('status').style.color = "#22c55e";
     } catch (e) {
-        statusEl.textContent = '❌ এরর: ' + e.message;
+        document.getElementById('status').textContent = "❌ " + e.message;
+        document.getElementById('status').style.color = "#ef4444";
     }
 });
 
-// ইউজারের তথ্য খোঁজা
-async function loadUserInfo() {
-    const userId = document.getElementById('manageId').value.trim();
-    if (!userId) return alert("ID দিন");
-
-    try {
-        // এখানে আমরা history API দিয়েই চেক করছি ইউজারটি আছে কি না
-        const res = await fetch(`${API_BASE}/attendance/history/${userId}`);
-        const data = await res.json();
-        
-        if (data.length > 0 || res.ok) {
-            document.getElementById('editUserPanel').style.display = 'block';
-            document.getElementById('updateName').value = data.length > 0 ? data[0].name : '';
-        } else {
-            alert("ইউজার পাওয়া যায়নি!");
-        }
-    } catch (e) {
-        alert("ইউজার পাওয়া যায়নি বা সার্ভার অফলাইন!");
-    }
+async function init() {
+    await loadModels();
+    await startVideo();
+    await refreshTable();
 }
-
-// ইউজার আপডেট
-async function updateUser() {
-    const userId = document.getElementById('manageId').value.trim();
-    const newName = document.getElementById('updateName').value.trim();
-    if (!newName) return alert("নতুন নাম দিন");
-
-    const res = await fetch(`${API_BASE}/users/${userId}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: newName })
-    });
-
-    if (res.ok) {
-        alert("✅ ইউজারের নাম আপডেট হয়েছে!");
-        refreshTable();
-    } else {
-        alert("❌ আপডেট ফেইল করেছে!");
-    }
-}
-
-// ইউজার ডিলিট
-async function deleteUser() {
-    const userId = document.getElementById('manageId').value.trim();
-    if (!confirm(`আপনি কি নিশ্চিত যে ${userId} ইউজারকে ডিলিট করতে চান? তার সব হাজিরাও মুছে যাবে!`)) return;
-
-    const res = await fetch(`${API_BASE}/users/${userId}`, { method: 'DELETE' });
-
-    if (res.ok) {
-        alert("🗑️ ইউজার ডিলিট হয়েছে!");
-        document.getElementById('editUserPanel').style.display = 'none';
-        document.getElementById('manageId').value = '';
-        refreshTable();
-    } else {
-        alert("❌ ডিলিট ফেইল করেছে!");
-    }
-}
-
-
 init();
