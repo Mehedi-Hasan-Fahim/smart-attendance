@@ -3,7 +3,8 @@ const MODEL_URL = '/models';
 
 let faceMatcher = null;
 const labeledDescriptors = [];
-let recentlyGreeted = {}; // বারবার গ্রিটিং এড়ানোর জন্য
+let recentlyGreeted = {}; 
+let isEyeClosed = false;
 
 async function loadModels() {
     await faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL);
@@ -31,7 +32,60 @@ async function loadRegisteredUsers() {
     } catch (err) { console.error("Error loading users:", err); }
 }
 
+function calculateEAR(eye) {
+    const v1 = Math.hypot(eye[1].x - eye[5].x, eye[1].y - eye[5].y);
+    const v2 = Math.hypot(eye[2].x - eye[4].x, eye[2].y - eye[4].y);
+    const h = Math.hypot(eye[0].x - eye[3].x, eye[0].y - eye[3].y);
+    return (v1 + v2) / (2.0 * h);
+}
 
+async function recognizeFace() {
+    const video = document.getElementById('video');
+    const wrapper = document.getElementById('videoWrapper');
+    
+    const detection = await faceapi
+        .detectSingleFace(video, new faceapi.TinyFaceDetectorOptions())
+        .withFaceLandmarks()
+        .withFaceDescriptor()
+        .withFaceExpressions();
+
+    if (!detection) {
+        wrapper.className = "video-wrapper scanning";
+        isEyeClosed = false; 
+        return null;
+    }
+
+    const leftEAR = calculateEAR(detection.landmarks.getLeftEye());
+    const rightEAR = calculateEAR(detection.landmarks.getRightEye());
+    const avgEAR = (leftEAR + rightEAR) / 2.0;
+
+    if (avgEAR < 0.22) {
+        isEyeClosed = true;
+    } else if (avgEAR > 0.25 && isEyeClosed) {
+        isEyeClosed = false;
+        wrapper.setAttribute('data-blinked', 'true'); 
+    }
+
+    const emotion = Object.keys(detection.expressions).reduce((a, b) => detection.expressions[a] > detection.expressions[b] ? a : b);
+    let userInfo = null;
+    
+    if (faceMatcher) {
+        const match = faceMatcher.findBestMatch(detection.descriptor);
+        if (match.label !== 'unknown') {
+            const [id, name] = match.label.split('|');
+            userInfo = { id, name, emotion };
+        }
+    }
+
+    if (userInfo && wrapper.getAttribute('data-blinked') === 'true') {
+        wrapper.className = "video-wrapper recognized"; 
+        return { userInfo, emotion, isLive: true };
+    } else {
+        wrapper.className = "video-wrapper scanning"; 
+        document.getElementById('status').textContent = userInfo ? '👁️ Please blink your eyes to verify!' : '🔍 Scanning...';
+        return { userInfo: null, emotion, isLive: false }; 
+    }
+}
 
 async function logAttendance(userId, emotion) {
     const res = await fetch(`${API_BASE}/attendance`, {
@@ -56,131 +110,19 @@ function speakGreeting(name, emotion) {
     window.speechSynthesis.speak(msg);
 }
 
-
-// EAR (Eye Aspect Ratio) গাণিতিক সূত্র দিয়ে চোখের পলক ডিটেক্ট করা
-function calculateEAR(eye) {
-    // চোখের উপর ও নিচের দূরত্ব (Vertical)
-    const v1 = Math.hypot(eye[1].x - eye[5].x, eye[1].y - eye[5].y);
-    const v2 = Math.hypot(eye[2].x - eye[4].x, eye[2].y - eye[4].y);
-    // চোখের বাম ও ডান দূরত্ব (Horizontal)
-    const h = Math.hypot(eye[0].x - eye[3].x, eye[0].y - eye[3].y);
-    
-    // রেশিও বের করা
-    return (v1 + v2) / (2.0 * h);
-}
-
-let isEyeClosed = false;
-
-async function recognizeFace() {
-    const video = document.getElementById('video');
-    const wrapper = document.getElementById('videoWrapper');
-    
-    const detection = await faceapi
-        .detectSingleFace(video, new faceapi.TinyFaceDetectorOptions())
-        .withFaceLandmarks()
-        .withFaceDescriptor()
-        .withFaceExpressions();
-
-    if (!detection) {
-        wrapper.className = "video-wrapper scanning";
-        isEyeClosed = false; 
-        return null;
-    }
-
-    // EAR মাপা
-    const leftEAR = calculateEAR(detection.landmarks.getLeftEye());
-    const rightEAR = calculateEAR(detection.landmarks.getRightEye());
-    const avgEAR = (leftEAR + rightEAR) / 2.0;
-
-    // EAR 0.22 এর নিচে নামলে বুঝতে হবে চোখ বন্ধ
-    if (avgEAR < 0.22) {
-        isEyeClosed = true;
-    } 
-    // চোখ আবার খুললে (EAR বেড়ে গেলে) ব্লিংক কাউন্ট হবে
-    else if (avgEAR > 0.25 && isEyeClosed) {
-        isEyeClosed = false;
-        wrapper.setAttribute('data-blinked', 'true'); // ব্লিংক সফল
-    }
-
-    const emotion = Object.keys(detection.expressions).reduce((a, b) => detection.expressions[a] > detection.expressions[b] ? a : b);
-    let userInfo = null;
-    
-    if (faceMatcher) {
-        const match = faceMatcher.findBestMatch(detection.descriptor);
-        if (match.label !== 'unknown') {
-            const [id, name] = match.label.split('|');
-            userInfo = { id, name, emotion };
-        }
-    }
-
-    // লাইভনেস চেক (ব্লিংক) পাস হলে এবং ইউজার ম্যাচ করলে তবেই সবুজ রিং হবে
-    if (userInfo && wrapper.getAttribute('data-blinked') === 'true') {
-        wrapper.className = "video-wrapper recognized"; // সবুজ রিং
-        return { userInfo, emotion, isLive: true };
-    } else {
-        wrapper.className = "video-wrapper scanning"; // লাল রিং
-        document.getElementById('status').textContent = userInfo ? '👁️ Please blink your eyes!' : '🔍 Scanning...';
-        return { userInfo: null, emotion, isLive: false }; 
-    }
-}
-
-let blinkDetected = false;
-let scanStartTime = 0;
-
-async function recognizeFace() {
-    const video = document.getElementById('video');
-    const wrapper = document.getElementById('videoWrapper');
-    
-    const detection = await faceapi
-        .detectSingleFace(video, new faceapi.TinyFaceDetectorOptions())
-        .withFaceLandmarks()
-        .withFaceDescriptor()
-        .withFaceExpressions();
-
-    // যদি মুখ না পাওয়া যায়, রিং লাল থাকবে
-    if (!detection) {
-        wrapper.className = "video-wrapper scanning";
-        blinkDetected = false; 
-        scanStartTime = 0;
-        return null;
-    }
-
-    // মুখ পাওয়া গেলে চেক করব চোখের পলক পড়েছে কি না
-    if (detectBlink(detection.landmarks)) {
-        blinkDetected = true;
-    }
-
-    const emotion = Object.keys(detection.expressions).reduce((a, b) => detection.expressions[a] > detection.expressions[b] ? a : b);
-    let userInfo = null;
-    
-    if (faceMatcher) {
-        const match = faceMatcher.findBestMatch(detection.descriptor);
-        if (match.label !== 'unknown') {
-            const [id, name] = match.label.split('|');
-            userInfo = { id, name, emotion };
-        }
-    }
-
-    // লাইভনেস চেক (ব্লিংক) পাস হলে এবং ইউজার ম্যাচ করলে তবেই সবুজ রিং হবে
-    if (userInfo && blinkDetected) {
-        wrapper.className = "video-wrapper recognized"; // সবুজ রিং
-        return { userInfo, emotion, isLive: true };
-    } else {
-        wrapper.className = "video-wrapper scanning"; // লাল রিং
-        document.getElementById('status').textContent = userInfo ? '👁️ Please blink your eyes to verify!' : '🔍 Scanning...';
-        return { userInfo: null, emotion, isLive: false }; // ব্লিংক না করলে হাজিরা নেবে না
-    }
-}
-
-// init ফাংশনে একটু পরিবর্তন
 async function init() {
     try {
-        document.getElementById('status').textContent = '⏳ Loading Models...';
+        document.getElementById('status').textContent = '⏳ Loading AI Models... (Please wait)';
         await loadModels();
+        
+        document.getElementById('status').textContent = '☁️ Connecting to Server...';
         await loadRegisteredUsers(); 
+        
+        document.getElementById('status').textContent = '📷 Starting Camera...';
         await startVideo();
         
-        document.getElementById('videoWrapper').className = "video-wrapper scanning"; // শুরুতে লাল রিং
+        document.getElementById('videoWrapper').className = "video-wrapper scanning";
+        document.getElementById('status').textContent = '👀 Look at the camera...';
 
         setInterval(async () => {
             const result = await recognizeFace();
@@ -195,27 +137,23 @@ async function init() {
                     document.getElementById('status').textContent = `👋 ${name} | Emotion: ${emotion}`;
                     document.getElementById('status').style.color = '#22c55e';
                     
-                    const logRes = await logAttendance(id, emotion);
+                    await logAttendance(id, emotion);
                     speakGreeting(name, emotion);
 
-                    // ৫ সেকেন্ড পর আবার স্ক্যানিং শুরু হবে
                     setTimeout(() => {
                         wrapper.className = "video-wrapper scanning";
-                        wrapper.setAttribute('data-blinked', 'false'); // রিসেট
+                        wrapper.setAttribute('data-blinked', 'false'); 
                         document.getElementById('status').textContent = '👀 Look at the camera...';
                         document.getElementById('status').style.color = 'white';
                     }, 5000);
                 }
             }
-        }, 1000); // প্রতি ১ সেকেন্ডে চেক করবে
+        }, 1000);
     } catch (error) {
+        document.getElementById('status').textContent = '❌ Error: ' + error.message;
+        document.getElementById('status').style.color = '#ef4444';
         console.error(error);
     }
 }
-
-// ইউজার ইন্টারঅ্যাকশনের পর অডিও চালু হওয়ার জন্য
-document.body.addEventListener('click', () => {
-    if (window.speechSynthesis.paused) window.speechSynthesis.resume();
-}, { once: true });
 
 init();
