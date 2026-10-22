@@ -184,6 +184,7 @@ async function init() {
 
         setInterval(async () => {
             const result = await recognizeFace();
+            const wrapper = document.getElementById('videoWrapper');
             
             if (result && result.isLive && result.userInfo) {
                 const { id, name, emotion } = result.userInfo;
@@ -197,8 +198,10 @@ async function init() {
                     const logRes = await logAttendance(id, emotion);
                     speakGreeting(name, emotion);
 
+                    // ৫ সেকেন্ড পর আবার স্ক্যানিং শুরু হবে
                     setTimeout(() => {
-                        document.getElementById('videoWrapper').className = "video-wrapper scanning";
+                        wrapper.className = "video-wrapper scanning";
+                        wrapper.setAttribute('data-blinked', 'false'); // রিসেট
                         document.getElementById('status').textContent = '👀 Look at the camera...';
                         document.getElementById('status').style.color = 'white';
                     }, 5000);
