@@ -4,9 +4,10 @@ const MODEL_URL = '/models';
 let faceMatcher = null;
 const labeledDescriptors = [];
 let recentlyGreeted = {}; 
-let isEyeClosed = false;
-let livenessPassed = false; // চোখের পলক সফল হয়েছে কি না
+let isProcessing = false; // লক: যাতে একসাথে একাধিক স্ক্যান না হয়
+let isAudioEnabled = false;
 
+// ১. মডেল লোড
 async function loadModels() {
     await faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL);
     await faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL);
@@ -14,6 +15,7 @@ async function loadModels() {
     await faceapi.nets.faceExpressionNet.loadFromUri(MODEL_URL);
 }
 
+// ২. ভিডিও চালু
 async function startVideo() {
     const video = document.getElementById('video');
     const stream = await navigator.mediaDevices.getUserMedia({ video: true });
@@ -21,6 +23,7 @@ async function startVideo() {
     return new Promise(resolve => video.addEventListener('playing', () => resolve(video)));
 }
 
+// ৩. ডেটাবেজ থেকে ইউজার লোড
 async function loadRegisteredUsers() {
     try {
         const res = await fetch(`${API_BASE}/users`);
@@ -33,18 +36,7 @@ async function loadRegisteredUsers() {
     } catch (err) { console.error("Error loading users:", err); }
 }
 
-
-async function logAttendance(userId, emotion) {
-    const res = await fetch(`${API_BASE}/attendance`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ user_id: userId, emotion: emotion })
-    });
-    return res.json();
-}
-
-
-// EAR হিসাব করার ফাংশন
+// ৪. EAR হিসাব (ব্লিংক ডিটেকশন)
 function calculateEAR(eye) {
     const v1 = Math.hypot(eye[1].x - eye[5].x, eye[1].y - eye[5].y);
     const v2 = Math.hypot(eye[2].x - eye[4].x, eye[2].y - eye[4].y);
@@ -52,7 +44,12 @@ function calculateEAR(eye) {
     return (v1 + v2) / (2.0 * h);
 }
 
+// ৫. অডিও প্লে ফাংশন (আগের অডিও বন্ধ করে নতুনটা বাজাবে)
 function speakGreeting(name, emotion) {
+    if (!isAudioEnabled) return; // ব্রাউজার ব্লক করলে স্কিপ করবে
+    
+    window.speechSynthesis.cancel(); // আগের কথা বলা বন্ধ করবে
+    
     const hour = new Date().getHours();
     let timeGreeting = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
     let emotionMessage = "";
@@ -66,109 +63,129 @@ function speakGreeting(name, emotion) {
     window.speechSynthesis.speak(msg);
 }
 
-
-async function recognizeFace() {
+// ৬. মূল রিকগনিশন লজিক
+async function processFrame() {
+    if (isProcessing) return; // যদি আগের ফ্রেম প্রসেসিং চলতে থাকে, তবে অপেক্ষা করবে
+    
     const video = document.getElementById('video');
     const wrapper = document.getElementById('videoWrapper');
     const statusEl = document.getElementById('status');
     
-    const detection = await faceapi
-        .detectSingleFace(video, new faceapi.TinyFaceDetectorOptions({ inputSize: 224, scoreThreshold: 0.5 }))
-        .withFaceLandmarks()
-        .withFaceDescriptor()
-        .withFaceExpressions();
+    try {
+        isProcessing = true; // লক করা হলো
 
-    if (!detection) {
-        wrapper.className = "video-wrapper scanning";
-        statusEl.textContent = '🔍 Looking for face...';
-        statusEl.style.color = 'white';
-        isEyeClosed = false; 
-        livenessPassed = false; 
-        return;
-    }
+        // TinyFaceDetector এর সাইজ ছোট করে দিলাম (inputSize: 160) যাতে সুপারফাস্ট হয়
+        const detection = await faceapi
+            .detectSingleFace(video, new faceapi.TinyFaceDetectorOptions({ inputSize: 160, scoreThreshold: 0.5 }))
+            .withFaceLandmarks()
+            .withFaceDescriptor()
+            .withFaceExpressions();
 
-    // EAR মাপা
-    const leftEAR = calculateEAR(detection.landmarks.getLeftEye());
-    const rightEAR = calculateEAR(detection.landmarks.getRightEye());
-    const avgEAR = (leftEAR + rightEAR) / 2.0;
-
-    // ব্লিংক ডিটেকশন (থ্রেশহোল্ড বাড়িয়ে ০.২৪ করা হলো)
-    if (avgEAR < 0.24) {
-        isEyeClosed = true;
-    } else if (avgEAR > 0.28 && isEyeClosed) {
-        isEyeClosed = false;
-        livenessPassed = true; 
-    }
-
-    if (!livenessPassed) {
-        wrapper.className = "video-wrapper detected"; 
-        statusEl.textContent = '👁️ Face Detected! Please blink your eyes.';
-        statusEl.style.color = '#f59e0b'; 
-        return;
-    }
-
-    const emotion = Object.keys(detection.expressions).reduce((a, b) => detection.expressions[a] > detection.expressions[b] ? a : b);
-    let userInfo = null;
-    
-    if (faceMatcher) {
-        const match = faceMatcher.findBestMatch(detection.descriptor);
-        if (match.label !== 'unknown') {
-            const [id, name] = match.label.split('|');
-            userInfo = { id, name, emotion };
-        }
-    }
-
-    if (userInfo) {
-        wrapper.className = "video-wrapper recognized"; // Green ring
-        const { id, name, emotion } = userInfo;
-        
-        // টেক্সট সাথে সাথে আপডেট হবে
-        statusEl.textContent = `👋 Welcome ${name}!`;
-        statusEl.style.color = '#22c55e';
-
-        const now = Date.now();
-        // যদি এই ৬০ সেকেন্ডে তাকে গ্রিটিং না করা হয়ে থাকে
-        if (!recentlyGreeted[id] || now - recentlyGreeted[id] > 60000) {
-            recentlyGreeted[id] = now;
-            await logAttendance(id, emotion);
-            speakGreeting(name, emotion);
-        }
-
-        // ৪ সেকেন্ড পর স্ক্রিন আবার রিসেট হবে
-        setTimeout(() => {
-            livenessPassed = false;
-            isEyeClosed = false;
+        if (!detection) {
             wrapper.className = "video-wrapper scanning";
-            statusEl.textContent = '👀 Look at the camera...';
+            statusEl.textContent = '🔍 Looking for face...';
             statusEl.style.color = 'white';
-        }, 4000);
+            isProcessing = false;
+            return;
+        }
 
-        return; // রিটার্ন করে দিলাম যাতে লুপে বারবার টেক্সট চেঞ্জ না হয়
-    } else {
-        wrapper.className = "video-wrapper detected"; 
-        statusEl.textContent = '❓ Unknown Person. Please register first.';
-        statusEl.style.color = '#ef4444';
+        // EAR মাপা
+        const avgEAR = (calculateEAR(detection.landmarks.getLeftEye()) + calculateEAR(detection.landmarks.getRightEye())) / 2.0;
+        
+        if (avgEAR < 0.25) { // ব্লিংকের থ্রেশহোল্ড একটু বাড়িয়ে দিলাম
+            wrapper.className = "video-wrapper detected"; 
+            statusEl.textContent = '👁️ Face Detected! Please blink your eyes.';
+            statusEl.style.color = '#f59e0b'; 
+            isProcessing = false;
+            return;
+        }
+
+        // যদি চোখ খোলা থাকে, তবে ম্যাচিং করব
+        const emotion = Object.keys(detection.expressions).reduce((a, b) => detection.expressions[a] > detection.expressions[b] ? a : b);
+        let userInfo = null;
+        
+        if (faceMatcher) {
+            const match = faceMatcher.findBestMatch(detection.descriptor);
+            if (match.label !== 'unknown') {
+                const [id, name] = match.label.split('|');
+                userInfo = { id, name, emotion };
+            }
+        }
+
+        // ইউজার পাওয়া গেলে
+        if (userInfo) {
+            wrapper.className = "video-wrapper recognized"; 
+            const { id, name, emotion } = userInfo;
+            
+            statusEl.textContent = `👋 Welcome ${name}! (Emotion: ${emotion})`;
+            statusEl.style.color = '#22c55e';
+
+            const now = Date.now();
+            if (!recentlyGreeted[id] || now - recentlyGreeted[id] > 60000) {
+                recentlyGreeted[id] = now;
+                await fetch(`${API_BASE}/attendance`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ user_id: id, emotion: emotion })
+                });
+                speakGreeting(name, emotion);
+            }
+
+            // ৪ সেকেন্ড পর আবার স্ক্যানিং শুরু হবে
+            setTimeout(() => {
+                wrapper.className = "video-wrapper scanning";
+                statusEl.textContent = '👀 Look at the camera...';
+                statusEl.style.color = 'white';
+            }, 4000);
+
+        } else {
+            wrapper.className = "video-wrapper detected"; 
+            statusEl.textContent = '❓ Unknown Person. Please register.';
+            statusEl.style.color = '#ef4444';
+        }
+    } catch (error) {
+        console.error("Processing error:", error);
+    } finally {
+        isProcessing = false; // কাজ শেষ, লক খুলে দিলাম
     }
 }
 
-// init ফাংশনে setInterval এর গতি বাড়ানো হলো (৬০০ মিলিসেকেন্ড)
+// ৭. অটো-লুপ (setInterval এর বদলে setTimeout ব্যবহার করা হলো যাতে ওভারল্যাপ না হয়)
+async function scanLoop() {
+    await processFrame();
+    // আগের ফ্রেম শেষ হয়ে গেলে ৩০০ মিলিসেকেন্ড পর আবার স্ক্যান করবে
+    setTimeout(scanLoop, 300); 
+}
+
+// ৮. Initialize
 async function init() {
     try {
         document.getElementById('status').textContent = '⏳ Loading AI Models... (Please wait)';
         await loadModels();
+        
         document.getElementById('status').textContent = '☁️ Connecting to Server...';
         await loadRegisteredUsers(); 
+        
         document.getElementById('status').textContent = '📷 Starting Camera...';
         await startVideo();
         
         document.getElementById('videoWrapper').className = "video-wrapper scanning";
         document.getElementById('status').textContent = '👀 Look at the camera...';
 
-        // আগে ৮০০ ছিল, এখন ৬০০ মিলিসেকেন্ড করা হলো (ফাস্ট কাজ করবে)
-        setInterval(recognizeFace, 600); 
+        scanLoop(); // লুপ শুরু হলো
     } catch (error) {
         document.getElementById('status').textContent = '❌ Error: ' + error.message;
     }
 }
+
+// ৯. অডিও চালু করার জন্য ইউজার ইন্টারঅ্যাকশন নেওয়া
+document.body.addEventListener('click', () => {
+    if (!isAudioEnabled) {
+        isAudioEnabled = true;
+        // একটি ডামি অডিও বাজিয়ে ব্রাউজারকে পারমিশন দেওয়া
+        const msg = new SpeechSynthesisUtterance("Audio enabled.");
+        window.speechSynthesis.speak(msg);
+    }
+}, { once: true });
 
 init();
