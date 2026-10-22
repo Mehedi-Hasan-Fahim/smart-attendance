@@ -57,7 +57,7 @@ A modern, AI-powered web-based attendance system that uses facial recognition an
 ![Attendance Logs](assets/attendance-logs-portal-screenshot.png)
 
 ### 5.Poster
-![Poster](assets/Main-SDSE-Poster.png)
+![Poster](assets/Main SDSE Poster.png)
 
 
 ## ⚙️ Architecture & Workflow
