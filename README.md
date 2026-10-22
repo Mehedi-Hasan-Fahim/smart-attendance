@@ -56,6 +56,10 @@ A modern, AI-powered web-based attendance system that uses facial recognition an
 ### 4. Attendance Logs Portal
 ![Attendance Logs](assets/attendance-logs-portal-screenshot.png)
 
+### 5.Poster
+![Poster](assets/Main-SDSE-Poster.png)
+
+
 ## ⚙️ Architecture & Workflow
 1. **Frontend (Browser):** Captures video feed via WebRTC. `face-api.js` processes the video to detect faces, landmarks (for blink detection), and emotions.
 2. **Liveness Check:** Calculates the Eye Aspect Ratio (EAR) to ensure the user is a real person.
