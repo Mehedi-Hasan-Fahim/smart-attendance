@@ -3,12 +3,17 @@ const MODEL_URL = '/models';
 let currentData = []; // CSV ডাউনলোডের জন্য ডেটা জমা রাখবে
 
 // সাইডবার মেনু কন্ট্রোল
-function showSection(id) {
+function showSection(id, element) {
     document.querySelectorAll('.section').forEach(sec => sec.classList.remove('active'));
     document.querySelectorAll('.sidebar a').forEach(a => a.classList.remove('active'));
+    
     document.getElementById(id).classList.add('active');
-    event.target.classList.add('active');
-    if(id === 'dashboard') loadChart();
+    if(element) element.classList.add('active');
+    
+    // চার্ট লোড করার আগে একটু সময় দেওয়া হচ্ছে যাতে ডিভ রেন্ডার হয়
+    if(id === 'dashboard') {
+        setTimeout(() => { loadChart(); }, 100);
+    }
 }
 
 // মডেল লোড
@@ -102,7 +107,7 @@ async function loadChart() {
     });
 
     const ctx = document.getElementById('emotionChart').getContext('2d');
-    if(window.myChart) window.myChart.destroy(); // আগের চার্ট মুছে ফেলা
+    if(window.myChart) window.myChart.destroy();
 
     window.myChart = new Chart(ctx, {
         type: 'doughnut',
@@ -110,10 +115,15 @@ async function loadChart() {
             labels: ['Happy', 'Neutral', 'Sad', 'Angry', 'Other'],
             datasets: [{
                 data: [counts.happy, counts.neutral, counts.sad, counts.angry, counts.other],
-                backgroundColor: ['#22c55e', '#3b82f6', '#ef4444', '#f59e0b', '#64748b']
+                backgroundColor: ['#22c55e', '#3b82f6', '#ef4444', '#f59e0b', '#64748b'],
+                borderWidth: 0
             }]
         },
-        options: { plugins: { legend: { labels: { color: 'white' } } } }
+        options: { 
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { labels: { color: 'white' } } } 
+        }
     });
 }
 
