@@ -33,94 +33,6 @@ async function loadRegisteredUsers() {
     } catch (err) { console.error("Error loading users:", err); }
 }
 
-function calculateEAR(eye) {
-    const v1 = Math.hypot(eye[1].x - eye[5].x, eye[1].y - eye[5].y);
-    const v2 = Math.hypot(eye[2].x - eye[4].x, eye[2].y - eye[4].y);
-    const h = Math.hypot(eye[0].x - eye[3].x, eye[0].y - eye[3].y);
-    return (v1 + v2) / (2.0 * h);
-}
-
-async function recognizeFace() {
-    const video = document.getElementById('video');
-    const wrapper = document.getElementById('videoWrapper');
-    const statusEl = document.getElementById('status');
-    
-    const detection = await faceapi
-        .detectSingleFace(video, new faceapi.TinyFaceDetectorOptions({ inputSize: 224, scoreThreshold: 0.5 }))
-        .withFaceLandmarks()
-        .withFaceDescriptor()
-        .withFaceExpressions();
-
-    // ১. যদি কোনো মুখ না পাওয়া যায় (Red Ring)
-    if (!detection) {
-        wrapper.className = "video-wrapper scanning";
-        statusEl.textContent = '🔍 Looking for face...';
-        statusEl.style.color = 'white';
-        isEyeClosed = false; 
-        livenessPassed = false; // মুখ হারিয়ে গেলে ব্লিংক রিসেট হবে
-        return;
-    }
-
-    // চোখের পলক চেক (EAR)
-    const leftEAR = calculateEAR(detection.landmarks.getLeftEye());
-    const rightEAR = calculateEAR(detection.landmarks.getRightEye());
-    const avgEAR = (leftEAR + rightEAR) / 2.0;
-
-    // চোখ বন্ধ হলে (threshold < 0.22)
-    if (avgEAR < 0.22) {
-        isEyeClosed = true;
-    } 
-    // চোখ আবার খোলা হলে (threshold > 0.25) এবং আগে বন্ধ ছিল
-    else if (avgEAR > 0.25 && isEyeClosed) {
-        isEyeClosed = false;
-        livenessPassed = true; 
-    }
-
-    // ২. মুখ পাওয়া গেছে, কিন্তু ব্লিংক করা হয়নি (Yellow Ring)
-    if (!livenessPassed) {
-        wrapper.className = "video-wrapper detected"; // হলুদ রিং
-        statusEl.textContent = '👁️ Face Detected! Please blink your eyes.';
-        statusEl.style.color = '#f59e0b'; // Yellow text
-        return;
-    }
-
-    // ৩. ব্লিংক সফল হয়েছে, এখন ফেস ম্যাচিং করব (Green Ring)
-    const emotion = Object.keys(detection.expressions).reduce((a, b) => detection.expressions[a] > detection.expressions[b] ? a : b);
-    let userInfo = null;
-    
-    if (faceMatcher) {
-        const match = faceMatcher.findBestMatch(detection.descriptor);
-        if (match.label !== 'unknown') {
-            const [id, name] = match.label.split('|');
-            userInfo = { id, name, emotion };
-        }
-    }
-
-    if (userInfo) {
-        wrapper.className = "video-wrapper recognized"; // সবুজ রিং
-        const { id, name, emotion } = userInfo;
-        const now = Date.now();
-        
-        if (!recentlyGreeted[id] || now - recentlyGreeted[id] > 60000) {
-            recentlyGreeted[id] = now;
-            statusEl.textContent = `👋 Welcome ${name}!`;
-            statusEl.style.color = '#22c55e';
-            
-            await logAttendance(id, emotion);
-            speakGreeting(name, emotion);
-
-            // ৫ সেকেন্ড পর আবার রিসেট হবে
-            setTimeout(() => {
-                livenessPassed = false;
-                wrapper.className = "video-wrapper scanning";
-            }, 5000);
-        }
-    } else {
-        wrapper.className = "video-wrapper detected"; 
-        statusEl.textContent = '❓ Unknown Person. Please register first.';
-        statusEl.style.color = '#ef4444';
-    }
-}
 
 async function logAttendance(userId, emotion) {
     const res = await fetch(`${API_BASE}/attendance`, {
@@ -129,6 +41,15 @@ async function logAttendance(userId, emotion) {
         body: JSON.stringify({ user_id: userId, emotion: emotion })
     });
     return res.json();
+}
+
+
+// EAR হিসাব করার ফাংশন
+function calculateEAR(eye) {
+    const v1 = Math.hypot(eye[1].x - eye[5].x, eye[1].y - eye[5].y);
+    const v2 = Math.hypot(eye[2].x - eye[4].x, eye[2].y - eye[4].y);
+    const h = Math.hypot(eye[0].x - eye[3].x, eye[0].y - eye[3].y);
+    return (v1 + v2) / (2.0 * h);
 }
 
 function speakGreeting(name, emotion) {
@@ -145,25 +66,108 @@ function speakGreeting(name, emotion) {
     window.speechSynthesis.speak(msg);
 }
 
+
+async function recognizeFace() {
+    const video = document.getElementById('video');
+    const wrapper = document.getElementById('videoWrapper');
+    const statusEl = document.getElementById('status');
+    
+    const detection = await faceapi
+        .detectSingleFace(video, new faceapi.TinyFaceDetectorOptions({ inputSize: 224, scoreThreshold: 0.5 }))
+        .withFaceLandmarks()
+        .withFaceDescriptor()
+        .withFaceExpressions();
+
+    if (!detection) {
+        wrapper.className = "video-wrapper scanning";
+        statusEl.textContent = '🔍 Looking for face...';
+        statusEl.style.color = 'white';
+        isEyeClosed = false; 
+        livenessPassed = false; 
+        return;
+    }
+
+    // EAR মাপা
+    const leftEAR = calculateEAR(detection.landmarks.getLeftEye());
+    const rightEAR = calculateEAR(detection.landmarks.getRightEye());
+    const avgEAR = (leftEAR + rightEAR) / 2.0;
+
+    // ব্লিংক ডিটেকশন (থ্রেশহোল্ড বাড়িয়ে ০.২৪ করা হলো)
+    if (avgEAR < 0.24) {
+        isEyeClosed = true;
+    } else if (avgEAR > 0.28 && isEyeClosed) {
+        isEyeClosed = false;
+        livenessPassed = true; 
+    }
+
+    if (!livenessPassed) {
+        wrapper.className = "video-wrapper detected"; 
+        statusEl.textContent = '👁️ Face Detected! Please blink your eyes.';
+        statusEl.style.color = '#f59e0b'; 
+        return;
+    }
+
+    const emotion = Object.keys(detection.expressions).reduce((a, b) => detection.expressions[a] > detection.expressions[b] ? a : b);
+    let userInfo = null;
+    
+    if (faceMatcher) {
+        const match = faceMatcher.findBestMatch(detection.descriptor);
+        if (match.label !== 'unknown') {
+            const [id, name] = match.label.split('|');
+            userInfo = { id, name, emotion };
+        }
+    }
+
+    if (userInfo) {
+        wrapper.className = "video-wrapper recognized"; // Green ring
+        const { id, name, emotion } = userInfo;
+        
+        // টেক্সট সাথে সাথে আপডেট হবে
+        statusEl.textContent = `👋 Welcome ${name}!`;
+        statusEl.style.color = '#22c55e';
+
+        const now = Date.now();
+        // যদি এই ৬০ সেকেন্ডে তাকে গ্রিটিং না করা হয়ে থাকে
+        if (!recentlyGreeted[id] || now - recentlyGreeted[id] > 60000) {
+            recentlyGreeted[id] = now;
+            await logAttendance(id, emotion);
+            speakGreeting(name, emotion);
+        }
+
+        // ৪ সেকেন্ড পর স্ক্রিন আবার রিসেট হবে
+        setTimeout(() => {
+            livenessPassed = false;
+            isEyeClosed = false;
+            wrapper.className = "video-wrapper scanning";
+            statusEl.textContent = '👀 Look at the camera...';
+            statusEl.style.color = 'white';
+        }, 4000);
+
+        return; // রিটার্ন করে দিলাম যাতে লুপে বারবার টেক্সট চেঞ্জ না হয়
+    } else {
+        wrapper.className = "video-wrapper detected"; 
+        statusEl.textContent = '❓ Unknown Person. Please register first.';
+        statusEl.style.color = '#ef4444';
+    }
+}
+
+// init ফাংশনে setInterval এর গতি বাড়ানো হলো (৬০০ মিলিসেকেন্ড)
 async function init() {
     try {
         document.getElementById('status').textContent = '⏳ Loading AI Models... (Please wait)';
         await loadModels();
-        
         document.getElementById('status').textContent = '☁️ Connecting to Server...';
         await loadRegisteredUsers(); 
-        
         document.getElementById('status').textContent = '📷 Starting Camera...';
         await startVideo();
         
         document.getElementById('videoWrapper').className = "video-wrapper scanning";
         document.getElementById('status').textContent = '👀 Look at the camera...';
 
-        // প্রতি ৮০০ মিলিসেকেন্ড পর পর স্ক্যান করবে (আগের চেয়ে ফাস্ট)
-        setInterval(recognizeFace, 800); 
+        // আগে ৮০০ ছিল, এখন ৬০০ মিলিসেকেন্ড করা হলো (ফাস্ট কাজ করবে)
+        setInterval(recognizeFace, 600); 
     } catch (error) {
         document.getElementById('status').textContent = '❌ Error: ' + error.message;
-        document.getElementById('status').style.color = '#ef4444';
     }
 }
 
