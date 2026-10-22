@@ -56,19 +56,72 @@ function speakGreeting(name, emotion) {
     window.speechSynthesis.speak(msg);
 }
 
-// চোখের পলক ডিটেক্ট করার ফাংশন (EAR - Eye Aspect Ratio)
-function detectBlink(landmarks) {
-    const leftEye = landmarks.getLeftEye();
-    const rightEye = landmarks.getRightEye();
+
+// EAR (Eye Aspect Ratio) গাণিতিক সূত্র দিয়ে চোখের পলক ডিটেক্ট করা
+function calculateEAR(eye) {
+    // চোখের উপর ও নিচের দূরত্ব (Vertical)
+    const v1 = Math.hypot(eye[1].x - eye[5].x, eye[1].y - eye[5].y);
+    const v2 = Math.hypot(eye[2].x - eye[4].x, eye[2].y - eye[4].y);
+    // চোখের বাম ও ডান দূরত্ব (Horizontal)
+    const h = Math.hypot(eye[0].x - eye[3].x, eye[0].y - eye[3].y);
     
-    // চোখের উপর ও নিচের দূরত্ব বের করা
-    const leftEAR = Math.abs(leftEye[1].y - leftEye[5].y) + Math.abs(leftEye[2].y - leftEye[4].y);
-    const rightEAR = Math.abs(rightEye[1].y - rightEye[5].y) + Math.abs(rightEye[2].y - rightEye[4].y);
+    // রেশিও বের করা
+    return (v1 + v2) / (2.0 * h);
+}
+
+let isEyeClosed = false;
+
+async function recognizeFace() {
+    const video = document.getElementById('video');
+    const wrapper = document.getElementById('videoWrapper');
     
-    const ear = (leftEAR + rightEAR) / 2.0;
+    const detection = await faceapi
+        .detectSingleFace(video, new faceapi.TinyFaceDetectorOptions())
+        .withFaceLandmarks()
+        .withFaceDescriptor()
+        .withFaceExpressions();
+
+    if (!detection) {
+        wrapper.className = "video-wrapper scanning";
+        isEyeClosed = false; 
+        return null;
+    }
+
+    // EAR মাপা
+    const leftEAR = calculateEAR(detection.landmarks.getLeftEye());
+    const rightEAR = calculateEAR(detection.landmarks.getRightEye());
+    const avgEAR = (leftEAR + rightEAR) / 2.0;
+
+    // EAR 0.22 এর নিচে নামলে বুঝতে হবে চোখ বন্ধ
+    if (avgEAR < 0.22) {
+        isEyeClosed = true;
+    } 
+    // চোখ আবার খুললে (EAR বেড়ে গেলে) ব্লিংক কাউন্ট হবে
+    else if (avgEAR > 0.25 && isEyeClosed) {
+        isEyeClosed = false;
+        wrapper.setAttribute('data-blinked', 'true'); // ব্লিংক সফল
+    }
+
+    const emotion = Object.keys(detection.expressions).reduce((a, b) => detection.expressions[a] > detection.expressions[b] ? a : b);
+    let userInfo = null;
     
-    // যদি চোখের দূরত্ব ৫.৫ এর কম হয়, তার মানে চোখ বন্ধ (পলক পড়েছে)
-    return ear < 5.5; 
+    if (faceMatcher) {
+        const match = faceMatcher.findBestMatch(detection.descriptor);
+        if (match.label !== 'unknown') {
+            const [id, name] = match.label.split('|');
+            userInfo = { id, name, emotion };
+        }
+    }
+
+    // লাইভনেস চেক (ব্লিংক) পাস হলে এবং ইউজার ম্যাচ করলে তবেই সবুজ রিং হবে
+    if (userInfo && wrapper.getAttribute('data-blinked') === 'true') {
+        wrapper.className = "video-wrapper recognized"; // সবুজ রিং
+        return { userInfo, emotion, isLive: true };
+    } else {
+        wrapper.className = "video-wrapper scanning"; // লাল রিং
+        document.getElementById('status').textContent = userInfo ? '👁️ Please blink your eyes!' : '🔍 Scanning...';
+        return { userInfo: null, emotion, isLive: false }; 
+    }
 }
 
 let blinkDetected = false;
