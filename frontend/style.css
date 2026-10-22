@@ -107,6 +107,19 @@ th, td {
     animation: pulseGreen 1s;
 }
 
+/* Face Detected State (Yellow - Need Blink) */
+.video-wrapper.detected {
+    border: 6px solid #f59e0b;
+    box-shadow: 0 0 25px rgba(245, 158, 11, 0.6);
+    animation: pulseYellow 1.5s infinite;
+}
+
+@keyframes pulseYellow {
+    0% { box-shadow: 0 0 15px rgba(245, 158, 11, 0.4); }
+    50% { box-shadow: 0 0 35px rgba(245, 158, 11, 0.8); }
+    100% { box-shadow: 0 0 15px rgba(245, 158, 11, 0.4); }
+}
+
 @keyframes pulseRed {
     0% { box-shadow: 0 0 15px rgba(239, 68, 68, 0.4); }
     50% { box-shadow: 0 0 35px rgba(239, 68, 68, 0.8); }
