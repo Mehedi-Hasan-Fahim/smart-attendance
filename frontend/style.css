@@ -85,12 +85,14 @@ th, td {
     padding: 10px;
     transition: all 0.3s ease;
 }
+
 .video-wrapper video {
     border-radius: 50%;
     width: 350px;
     height: 350px;
     object-fit: cover;
     display: block;
+    border: none; /* এই লাইনটি লাল বর্ডার সরিয়ে দেবে */
 }
 
 /* Scanning State (Red) */
