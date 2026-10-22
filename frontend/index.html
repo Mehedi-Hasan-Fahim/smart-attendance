@@ -11,15 +11,27 @@
     </style>
 </head>
 <body>
+<body>
     <a href="admin.html" class="admin-link">🔒 Admin Login</a>
     
+    <!-- নতুন ওভারলে (শুরুতে এটি দেখা যাবে) -->
+    <div id="startOverlay" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(15, 23, 42, 0.95); z-index: 9999; display: flex; flex-direction: column; justify-content: center; align-items: center; cursor: pointer;">
+        <h1 style="color: #e94560; font-size: 3rem; margin-bottom: 20px;">🤖 Smart Attendance</h1>
+        <h2 style="color: white; margin-bottom: 30px;">Click Anywhere to Start System</h2>
+        <p style="color: #94a3b8;">(This enables camera and audio permissions)</p>
+    </div>
+
     <div class="container kiosk-container">
         <h1>🤖 Smart Attendance</h1>
         <div class="video-wrapper" id="videoWrapper">
             <video id="video" autoplay muted playsinline></video>
         </div>
-        <div id="status" class="status">ক্যামেরা চালু হচ্ছে...</div>
+        <div id="status" class="status">Initializing...</div>
     </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
+    <script src="kiosk.js"></script>
+</body>
 
     <script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
     <script src="kiosk.js"></script>
