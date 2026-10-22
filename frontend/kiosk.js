@@ -4,8 +4,9 @@ const MODEL_URL = '/models';
 let faceMatcher = null;
 const labeledDescriptors = [];
 let recentlyGreeted = {}; 
-let isProcessing = false; // লক: যাতে একসাথে একাধিক স্ক্যান না হয়
-let isAudioEnabled = false;
+let isProcessing = false; 
+let holdUI = false; // UI লক করার জন্য
+let blinkTimer = null;
 
 // ১. মডেল লোড
 async function loadModels() {
@@ -36,7 +37,7 @@ async function loadRegisteredUsers() {
     } catch (err) { console.error("Error loading users:", err); }
 }
 
-// ৪. EAR হিসাব (ব্লিংক ডিটেকশন)
+// ৪. EAR হিসাব
 function calculateEAR(eye) {
     const v1 = Math.hypot(eye[1].x - eye[5].x, eye[1].y - eye[5].y);
     const v2 = Math.hypot(eye[2].x - eye[4].x, eye[2].y - eye[4].y);
@@ -44,11 +45,9 @@ function calculateEAR(eye) {
     return (v1 + v2) / (2.0 * h);
 }
 
-// ৫. অডিও প্লে ফাংশন (আগের অডিও বন্ধ করে নতুনটা বাজাবে)
+// ৫. অডিও প্লে
 function speakGreeting(name, emotion) {
-    if (!isAudioEnabled) return; // ব্রাউজার ব্লক করলে স্কিপ করবে
-    
-    window.speechSynthesis.cancel(); // আগের কথা বলা বন্ধ করবে
+    window.speechSynthesis.cancel(); 
     
     const hour = new Date().getHours();
     let timeGreeting = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
@@ -60,27 +59,29 @@ function speakGreeting(name, emotion) {
 
     const msg = new SpeechSynthesisUtterance(`${timeGreeting}, ${name}. ${emotionMessage}`);
     msg.lang = 'en-US';
+    msg.rate = 0.9; // কথা বলার গতি একটু কমানো হলো
     window.speechSynthesis.speak(msg);
 }
 
 // ৬. মূল রিকগনিশন লজিক
 async function processFrame() {
-    if (isProcessing) return; // যদি আগের ফ্রেম প্রসেসিং চলতে থাকে, তবে অপেক্ষা করবে
+    // যদি UI লক থাকে বা আগের ফ্রেম প্রসেসিং চলতে থাকে, তবে কিছু করবে না
+    if (isProcessing || holdUI) return; 
     
     const video = document.getElementById('video');
     const wrapper = document.getElementById('videoWrapper');
     const statusEl = document.getElementById('status');
     
     try {
-        isProcessing = true; // লক করা হলো
+        isProcessing = true;
 
-        // TinyFaceDetector এর সাইজ ছোট করে দিলাম (inputSize: 160) যাতে সুপারফাস্ট হয়
         const detection = await faceapi
             .detectSingleFace(video, new faceapi.TinyFaceDetectorOptions({ inputSize: 160, scoreThreshold: 0.5 }))
             .withFaceLandmarks()
             .withFaceDescriptor()
             .withFaceExpressions();
 
+        // যদি মুখ না পাওয়া যায়
         if (!detection) {
             wrapper.className = "video-wrapper scanning";
             statusEl.textContent = '🔍 Looking for face...';
@@ -89,10 +90,10 @@ async function processFrame() {
             return;
         }
 
-        // EAR মাপা
+        // চোখের পলক ডিটেকশন
         const avgEAR = (calculateEAR(detection.landmarks.getLeftEye()) + calculateEAR(detection.landmarks.getRightEye())) / 2.0;
         
-        if (avgEAR < 0.25) { // ব্লিংকের থ্রেশহোল্ড একটু বাড়িয়ে দিলাম
+        if (avgEAR < 0.25) { 
             wrapper.className = "video-wrapper detected"; 
             statusEl.textContent = '👁️ Face Detected! Please blink your eyes.';
             statusEl.style.color = '#f59e0b'; 
@@ -100,7 +101,7 @@ async function processFrame() {
             return;
         }
 
-        // যদি চোখ খোলা থাকে, তবে ম্যাচিং করব
+        // ফেস ম্যাচিং
         const emotion = Object.keys(detection.expressions).reduce((a, b) => detection.expressions[a] > detection.expressions[b] ? a : b);
         let userInfo = null;
         
@@ -114,6 +115,7 @@ async function processFrame() {
 
         // ইউজার পাওয়া গেলে
         if (userInfo) {
+            holdUI = true; // UI লক করে দিলাম যাতে ফ্লিকার না করে
             wrapper.className = "video-wrapper recognized"; 
             const { id, name, emotion } = userInfo;
             
@@ -131,11 +133,12 @@ async function processFrame() {
                 speakGreeting(name, emotion);
             }
 
-            // ৪ সেকেন্ড পর আবার স্ক্যানিং শুরু হবে
+            // ৪ সেকেন্ড পর UI আনলক হবে
             setTimeout(() => {
                 wrapper.className = "video-wrapper scanning";
                 statusEl.textContent = '👀 Look at the camera...';
                 statusEl.style.color = 'white';
+                holdUI = false; // UI আনলক
             }, 4000);
 
         } else {
@@ -146,21 +149,23 @@ async function processFrame() {
     } catch (error) {
         console.error("Processing error:", error);
     } finally {
-        isProcessing = false; // কাজ শেষ, লক খুলে দিলাম
+        isProcessing = false; 
     }
 }
 
-// ৭. অটো-লুপ (setInterval এর বদলে setTimeout ব্যবহার করা হলো যাতে ওভারল্যাপ না হয়)
+// ৭. স্ক্যান লুপ
 async function scanLoop() {
     await processFrame();
-    // আগের ফ্রেম শেষ হয়ে গেলে ৩০০ মিলিসেকেন্ড পর আবার স্ক্যান করবে
     setTimeout(scanLoop, 300); 
 }
 
 // ৮. Initialize
-async function init() {
+async function startSystem() {
+    const overlay = document.getElementById('startOverlay');
+    if(overlay) overlay.style.display = 'none'; // ওভারলে সরিয়ে দিলাম
+
     try {
-        document.getElementById('status').textContent = '⏳ Loading AI Models... (Please wait)';
+        document.getElementById('status').textContent = '⏳ Loading AI Models...';
         await loadModels();
         
         document.getElementById('status').textContent = '☁️ Connecting to Server...';
@@ -172,20 +177,15 @@ async function init() {
         document.getElementById('videoWrapper').className = "video-wrapper scanning";
         document.getElementById('status').textContent = '👀 Look at the camera...';
 
-        scanLoop(); // লুপ শুরু হলো
+        // ওভারলে ক্লিক করলে একটি ডামি অডিও বাজাবো, যাতে ব্রাউজার অডিও পারমিশন লক খুলে দেয়
+        const unlockMsg = new SpeechSynthesisUtterance("System started.");
+        window.speechSynthesis.speak(unlockMsg);
+
+        scanLoop(); 
     } catch (error) {
         document.getElementById('status').textContent = '❌ Error: ' + error.message;
     }
 }
 
-// ৯. অডিও চালু করার জন্য ইউজার ইন্টারঅ্যাকশন নেওয়া
-document.body.addEventListener('click', () => {
-    if (!isAudioEnabled) {
-        isAudioEnabled = true;
-        // একটি ডামি অডিও বাজিয়ে ব্রাউজারকে পারমিশন দেওয়া
-        const msg = new SpeechSynthesisUtterance("Audio enabled.");
-        window.speechSynthesis.speak(msg);
-    }
-}, { once: true });
-
-init();
+// ৯. ওভারলে ক্লিক করলেই সিস্টেম চালু হবে
+document.getElementById('startOverlay').addEventListener('click', startSystem);
