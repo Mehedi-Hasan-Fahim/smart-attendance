@@ -1,27 +1,35 @@
 # Smart Attendance System with Face Recognition & Emotion Detection 🤖📸
 
-A modern, AI-powered web-based attendance system that uses facial recognition and emotion detection to mark attendance in real-time. It features a Kiosk mode for users and a secure Admin panel for management. The system greets users with personalized audio messages based on their detected emotion and the current time of day.
+A modern, AI-powered web-based attendance system that uses facial recognition and liveness detection (blink detection) to mark attendance in real-time. It features a user-friendly Kiosk mode for attendance marking and a secure, feature-rich Admin panel for management. The system greets users with personalized audio messages based on their detected emotion and the current time of day.
 
 ## 🚀 Live Demo
-- [Kiosk (User Interface)](https://smart-attendance-frontend-mu.vercel.app/)
-- [Admin Panel](https://smart-attendance-frontend-mu.vercel.app/admin.html)
+- **[Kiosk (User Interface)](https://smart-attendance-frontend-mu.vercel.app/)** - *Click anywhere on the screen to start.*
+- **[Admin Panel](https://smart-attendance-frontend-mu.vercel.app/admin.html)**
 
 ## ✨ Key Features
+### Kiosk Mode (User Interface)
 - **Real-time Face Recognition:** Uses `face-api.js` for fast and accurate face matching directly in the browser.
 - **Emotion Detection:** Detects user emotions (Happy, Sad, Neutral, Angry, etc.) using pre-trained models.
+- **Liveness Detection (Anti-Spoofing):** Requires the user to blink their eyes to prevent photo spoofing.
+- **Dynamic Visual Feedback:** 
+  - 🔴 Red Ring: Scanning for face.
+  - 🟡 Yellow Ring: Face detected, waiting for blink.
+  - 🟢 Green Ring: Face recognized and attendance marked.
 - **Personalized Audio Greeting:** Uses the Web Speech API to greet users dynamically (e.g., "Good morning, Fahim. You look happy today!").
-- **Kiosk Mode:** A clean, distraction-free camera interface for users to quickly mark attendance.
-- **Admin Dashboard:** 
-  - Register new users with face data.
-  - View daily attendance logs.
-  - Search specific user attendance history by ID.
-  - Update or delete user records.
-- **Cloud Database:** Uses TiDB Cloud (MySQL compatible) for secure and scalable data storage.
+
+### Admin Dashboard
+- **Professional UI:** Clean layout with a responsive sidebar menu.
+- **Analytics Dashboard:** Visualizes the daily attendance emotions using a dynamic Doughnut Chart (Chart.js).
+- **Register New Users:** Register new users with their name, ID, and facial data.
+- **Attendance Logs:** View daily attendance and search for specific user history by ID.
+- **CSV Export:** Download the attendance logs directly as a CSV file for Excel reporting.
+- **Database Management:** Update or delete user records safely.
 
 ## 🛠️ Tech Stack
 **Frontend:**
 - HTML5, CSS3, JavaScript (Vanilla)
 - [face-api.js](https://github.com/justadudewhohacks/face-api.js) (TensorFlow.js based facial recognition & emotion detection)
+- [Chart.js](https://www.chartjs.org/) (For Analytics Dashboard)
 - Web Speech API (For text-to-speech audio greeting)
 
 **Backend:**
@@ -36,20 +44,25 @@ A modern, AI-powered web-based attendance system that uses facial recognition an
 
 ## 📸 Screenshots
 
-### 1. Kiosk Mode (Face Recognition & Greeting)
-<!-- এখানে আপনার Kiosk Mode এর ছবি দিন -->
+### 1. Kiosk Mode (Face Recognition & Liveness Detection)
 ![Kiosk Mode](assets/kiosk-screenshot.png)
 
-### 2. Admin Panel (Registration & Attendance Logs)
-<!-- এখানে আপনার Admin Panel এর ছবি দিন -->
-![Admin Panel](assets/admin-screenshot.png)
+### 2. Admin Analytics Portal
+![Analytics Portal](assets/anatytics-portal-screenshot.png)
+
+### 3. Register New User Portal
+![Register User](assets/register-new-user-portal-screenshot.png)
+
+### 4. Attendance Logs Portal
+![Attendance Logs](assets/attendance-logs-portal-screenshot.png)
 
 ## ⚙️ Architecture & Workflow
-1. **Frontend (Browser):** Captures video feed via WebRTC. `face-api.js` processes the video to detect faces and emotions.
-2. **Matching:** It compares the captured face descriptor with the stored descriptors fetched from the backend.
-3. **Backend (FastAPI):** Receives the User ID and detected emotion. Checks if the user has already been marked present today (cooldown logic).
-4. **Database (TiDB):** Stores user face encodings (as JSON arrays) and daily attendance logs.
-5. **Audio Output:** If a match is found, the browser uses the Web Speech API to speak the greeting.
+1. **Frontend (Browser):** Captures video feed via WebRTC. `face-api.js` processes the video to detect faces, landmarks (for blink detection), and emotions.
+2. **Liveness Check:** Calculates the Eye Aspect Ratio (EAR) to ensure the user is a real person.
+3. **Matching:** Compares the captured face descriptor with the stored descriptors fetched from the backend.
+4. **Backend (FastAPI):** Receives the User ID and detected emotion. Checks if the user has already been marked present today (cooldown logic).
+5. **Database (TiDB):** Stores user face encodings (as JSON arrays) and daily attendance logs.
+6. **Audio Output:** If a match is found, the browser uses the Web Speech API to speak the greeting.
 
 ## 🚀 How to Run Locally
 
@@ -89,7 +102,6 @@ You can use any local server to run the frontend (e.g., Live Server in VS Code).
 cd frontend
 # Open index.html (Kiosk) or admin.html (Admin Panel) using Live Server
 ```
-
 ---
 ## 👨‍💻 Author
 *Developed with the assistance of:*
